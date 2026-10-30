@@ -46,12 +46,17 @@
           <input id="prompt" type="text" autocomplete="off" placeholder="Fale comigo ou digite..." aria-label="Mensagem">
           <button class="send-btn" type="submit" aria-label="Enviar">➤</button>
         </form>
-        <div class="controls">
-          <button id="micBtn" class="mic-btn" type="button"><span>🎙</span> FALAR</button>
-          <label class="voice-choice">VOZ
-            <select id="voiceSelect" aria-label="Escolher voz"><option value="female">Feminina</option><option value="male">Masculina</option><option value="off">Silenciosa</option></select>
-          </label>
-        </div>
+       <div class="controls">
+  <button id="micBtn" class="mic-btn" type="button"><span>🎙</span> FALAR</button>
+  <button id="testVoiceBtn" type="button">🔊 TESTAR VOZ</button>
+  <label class="voice-choice">VOZ
+    <select id="voiceSelect" aria-label="Escolher voz">
+      <option value="female">Feminina</option>
+      <option value="male">Masculina</option>
+      <option value="off">Silenciosa</option>
+    </select>
+  </label>
+</div>
         <p class="privacy-note">Sua chave de IA fica no servidor, nunca neste iPhone.</p>
       </section>
     </main>
