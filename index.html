@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050b16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VARJÃO AI">
+  <meta name="description" content="Seu assistente pessoal inteligente.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="stylesheet" href="/style.css">
+  <title>VARJÃO AI</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark"><span class="brand-dot"></span><div><strong>VARJÃO</strong><small>PERSONAL AI</small></div></div>
+      <div class="status"><span class="status-light"></span><span id="statusText">SISTEMA PRONTO</span></div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="eyebrow">ASSISTENTE PESSOAL</div>
+        <h1>À sua disposição.</h1>
+        <p>Converse comigo por texto ou voz.</p>
+        <div class="reactor-wrap" aria-label="Núcleo visual do VARJÃO">
+          <div class="orbit orbit-a"></div><div class="orbit orbit-b"></div>
+          <div class="reactor">
+            <div class="reactor-core"></div>
+            <div class="reactor-ring"></div>
+            <div class="reactor-cross"></div>
+          </div>
+          <div class="orbit-dot dot-a"></div><div class="orbit-dot dot-b"></div>
+        </div>
+        <div class="listen-state" id="listenState">AGUARDANDO COMANDO</div>
+      </section>
+
+      <section class="chat-panel">
+        <div class="chat-head"><span>CONVERSA</span><button id="clearBtn" class="text-btn">LIMPAR</button></div>
+        <div id="messages" class="messages" aria-live="polite">
+          <div class="message assistant"><span class="speaker">VARJÃO</span><p>Olá! Estou pronto. Como posso ajudar?</p></div>
+        </div>
+        <form id="chatForm" class="composer">
+          <input id="prompt" type="text" autocomplete="off" placeholder="Fale comigo ou digite..." aria-label="Mensagem">
+          <button class="send-btn" type="submit" aria-label="Enviar">➤</button>
+        </form>
+        <div class="controls">
+          <button id="micBtn" class="mic-btn" type="button"><span>🎙</span> FALAR</button>
+          <label class="voice-choice">VOZ
+            <select id="voiceSelect" aria-label="Escolher voz"><option value="female">Feminina</option><option value="male">Masculina</option><option value="off">Silenciosa</option></select>
+          </label>
+        </div>
+        <p class="privacy-note">Sua chave de IA fica no servidor, nunca neste iPhone.</p>
+      </section>
+    </main>
+    <footer>VARJÃO AI <span>•</span> VERSÃO INICIAL</footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
