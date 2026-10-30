@@ -9,7 +9,7 @@ app.get("/api/status", (_req, res) => {
   res.json({ ok: true, configured: Boolean(process.env.GEMINI_API_KEY) });
 });
 
-app.post("/api/chat", async (req, res) => {
+console.log("MENSAGEM RECEBIDA:", new Date().toISOString());
   try {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(503).json({ error: "Chave Gemini não configurada." });
