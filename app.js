@@ -171,7 +171,7 @@ testVoiceBtn.addEventListener("click", () => {
     return;
   }
 
-  synth.cancel();
+  
 
   const teste = new SpeechSynthesisUtterance(
     "Olá! Eu sou o VARJÃO. Minha voz está funcionando."
