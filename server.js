@@ -12,24 +12,23 @@ app.get("/api/status", (_req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(503).json({
-        error: "Adicione GEMINI_API_KEY nas variáveis do servidor."
-      });
+      return res.status(503).json({ error: "Chave Gemini não configurada." });
     }
 
     const messages = Array.isArray(req.body.messages) ? req.body.messages : [];
-    const safeMessages = messages.slice(-16).map(m => ({
+
+    const contents = messages.slice(-16).map(m => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: String(m.content || "").slice(0, 5000) }]
     }));
 
-    if (!safeMessages.length) {
-      return res.status(400).json({ error: "Escreva uma mensagem primeiro." });
+    if (!contents.length) {
+      return res.status(400).json({ error: "Escreva uma mensagem." });
     }
 
-   const response = await fetch(
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-  {.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      {
         method: "POST",
         headers: {
           "x-goog-api-key": process.env.GEMINI_API_KEY,
@@ -38,10 +37,10 @@ app.post("/api/chat", async (req, res) => {
         body: JSON.stringify({
           systemInstruction: {
             parts: [{
-              text: "Você é VARJÃO, um assistente pessoal inteligente, educado, direto e prestativo. Fale sempre em português do Brasil, a menos que o usuário peça outro idioma. Seja claro e natural."
+              text: "Você é VARJÃO, um assistente pessoal inteligente. Fale em português do Brasil, com clareza e naturalidade."
             }]
           },
-          contents: safeMessages
+          contents
         })
       }
     );
@@ -51,7 +50,7 @@ app.post("/api/chat", async (req, res) => {
     if (!response.ok) {
       console.error("Gemini API:", data);
       return res.status(response.status).json({
-        error: data.error?.message || "Erro ao consultar a inteligência artificial."
+        error: data.error?.message || "Erro ao consultar Gemini."
       });
     }
 
@@ -59,11 +58,11 @@ app.post("/api/chat", async (req, res) => {
       .map(part => part.text || "")
       .join("\n");
 
-    res.json({ answer: answer || "Não consegui formular uma resposta." });
+    res.json({ answer: answer || "Não consegui responder." });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Falha de conexão. Tente novamente." });
+    res.status(500).json({ error: "Falha de conexão." });
   }
 });
 
