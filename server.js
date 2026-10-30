@@ -9,17 +9,15 @@ app.use(express.static(__dirname));
 app.get("/api/status", (_req, res) => {
   res.json({
     ok: true,
-    configured: Boolean(process.env.GEMINI_API_KEY)
+    configured: Boolean(process.env.GROQ_API_KEY)
   });
 });
 
 app.post("/api/chat", async (req, res) => {
-  console.log("Mensagem recebida");
-
   try {
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return res.status(503).json({
-        error: "Chave Gemini não configurada."
+        error: "Chave do Groq não configurada."
       });
     }
 
@@ -27,11 +25,9 @@ app.post("/api/chat", async (req, res) => {
       ? req.body.messages
       : [];
 
-    const contents = messages.slice(-6).map(m => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{
-        text: String(m.content || "").slice(0, 2000)
-      }]
+    const contents = messages.slice(-10).map(m => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: String(m.content || "").slice(0, 3000)
     }));
 
     if (!contents.length) {
@@ -47,21 +43,25 @@ app.post("/api/chat", async (req, res) => {
 
     try {
       response = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
+        "https://api.groq.com/openai/v1/chat/completions",
         {
           method: "POST",
           signal: controller.signal,
           headers: {
-            "x-goog-api-key": process.env.GEMINI_API_KEY,
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            systemInstruction: {
-              parts: [{
-                text: "Você é VARJÃO, um assistente pessoal inteligente. Fale em português do Brasil, com clareza e naturalidade."
-              }]
-            },
-            contents
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "system",
+                content: "Você é VARJÃO, um assistente pessoal inteligente. Fale em português do Brasil, com clareza, naturalidade e atenção ao contexto."
+              },
+              ...contents
+            ],
+            temperature: 0.7,
+            max_tokens: 1500
           })
         }
       );
@@ -72,49 +72,24 @@ app.post("/api/chat", async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      const message = data.error?.message || "";
-
-      console.error("Gemini API:", data);
-
-      if (
-        response.status === 429 ||
-        message.toLowerCase().includes("quota")
-      ) {
-        return res.status(429).json({
-          error: "A cota gratuita do Gemini acabou. Aguarde a renovação para conversar novamente."
-        });
-      }
-
-      if (response.status === 503) {
-        return res.status(503).json({
-          error: "O Gemini está temporariamente ocupado. Tente novamente mais tarde."
-        });
-      }
-
+      console.error("Erro Groq:", data);
       return res.status(response.status).json({
-        error: message || "Erro ao consultar Gemini."
+        error: data.error?.message || "Erro ao consultar Groq."
       });
     }
 
-    const answer = (data.candidates?.[0]?.content?.parts || [])
-      .map(part => part.text || "")
-      .join("\n");
+    const answer =
+      data.choices?.[0]?.message?.content || "Não consegui responder.";
 
-    res.json({
-      answer: answer || "Não consegui responder."
-    });
+    res.json({ answer });
 
   } catch (err) {
     console.error("Erro no servidor:", err);
 
-    if (err.name === "AbortError") {
-      return res.status(504).json({
-        error: "O Gemini demorou demais para responder. Tente novamente."
-      });
-    }
-
-    res.status(500).json({
-      error: "Falha de conexão com o serviço de inteligência artificial."
+    res.status(err.name === "AbortError" ? 504 : 500).json({
+      error: err.name === "AbortError"
+        ? "O VARJÃO demorou para responder. Tente novamente."
+        : "Falha de conexão com a inteligência artificial."
     });
   }
 });
