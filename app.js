@@ -163,7 +163,7 @@ fetch("/api/status").then(r => r.json()).then(s => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
-testVoiceBtn.addEventListener("click", () => {
+testVoiceBtn.addEventListener("click", () => { alert("O botão de teste foi acionado!");
   const synth = window.speechSynthesis;
 
   if (!synth) {
