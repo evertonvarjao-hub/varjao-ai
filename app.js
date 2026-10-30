@@ -23,16 +23,59 @@ function addMessage(role, content) {
 }
 
 function speak(text) {
-  if (!("speechSynthesis" in window) || voiceSelect.value === "off") return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "pt-BR";
-  const voices = window.speechSynthesis.getVoices();
-  const pt = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith("pt"));
-  const preferred = pt.find(v => voiceSelect.value === "female" ? /female|luciana|joana|maria/i.test(v.name) : /male|daniel|jorge|ricardo/i.test(v.name));
-  if (preferred || pt[0]) utterance.voice = preferred || pt[0];
-  utterance.rate = 1;
-  window.speechSynthesis.speak(utterance);
+  if (!("speechSynthesis" in window)) {
+    console.error("Síntese de voz não disponível.");
+    return;
+  }
+
+  if (voiceSelect.value === "off") return;
+
+  const synth = window.speechSynthesis;
+
+  synth.cancel();
+
+  function falar() {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "pt-BR";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+
+    const voices = synth.getVoices();
+    const portugues = voices.filter(v =>
+      v.lang && v.lang.toLowerCase().startsWith("pt")
+    );
+
+    const preferida = portugues.find(v =>
+      voiceSelect.value === "female"
+        ? /female|luciana|joana|maria/i.test(v.name)
+        : /male|daniel|jorge|ricardo/i.test(v.name)
+    );
+
+    if (preferida || portugues[0]) {
+      utterance.voice = preferida || portugues[0];
+    }
+
+    utterance.onerror = (event) => {
+      console.error("Erro na reprodução de voz:", event.error);
+    };
+
+    synth.speak(utterance);
+  }
+
+  if (synth.getVoices().length > 0) {
+    falar();
+  } else {
+    synth.onvoiceschanged = () => {
+      synth.onvoiceschanged = null;
+      falar();
+    };
+
+    setTimeout(() => {
+      if (!synth.speaking && !synth.pending) {
+        falar();
+      }
+    }, 1000);
+  }
 }
 
 async function sendMessage(text) {
