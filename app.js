@@ -5,6 +5,7 @@ const micBtn = document.getElementById("micBtn");
 const listenState = document.getElementById("listenState");
 const statusText = document.getElementById("statusText");
 const testVoiceBtn = document.getElementById("testVoiceBtn");
+const voiceSelect = document.getElementById("voiceSelect");
 let history = [];
 let recognition = null;
 let busy = false;
