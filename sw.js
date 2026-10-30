@@ -1,4 +1,4 @@
-const CACHE = "varjao-ai-v2";
+const CACHE = "varjao-ai-v3";
 
 const CORE = [
   "/",
