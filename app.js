@@ -163,3 +163,36 @@ fetch("/api/status").then(r => r.json()).then(s => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
+testVoiceBtn.addEventListener("click", () => {
+  const synth = window.speechSynthesis;
+
+  if (!synth) {
+    alert("Este navegador não oferece reprodução de voz.");
+    return;
+  }
+
+  synth.cancel();
+
+  const teste = new SpeechSynthesisUtterance(
+    "Olá! Eu sou o VARJÃO. Minha voz está funcionando."
+  );
+
+  teste.lang = "pt-BR";
+  teste.rate = 1;
+  teste.volume = 1;
+
+  const vozes = synth.getVoices();
+  const portugues = vozes.filter(v =>
+    v.lang && v.lang.toLowerCase().startsWith("pt")
+  );
+
+  if (portugues.length > 0) {
+    teste.voice = portugues[0];
+  }
+
+  teste.onerror = (e) => {
+    alert("Erro ao reproduzir voz: " + e.error);
+  };
+
+  synth.speak(teste);
+});
