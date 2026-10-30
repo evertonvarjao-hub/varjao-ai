@@ -164,7 +164,31 @@ fetch("/api/status").then(r => r.json()).then(s => {
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
 }
-testVoiceBtn.addEventListener("click", () => { alert("O botão de teste foi acionado!");
+testVoiceBtn.addEventListener("click", () => {
+  const synth = window.speechSynthesis;
+
+  function listarVozes() {
+    const vozes = synth.getVoices();
+
+    const portugues = vozes.filter(v =>
+      v.lang && v.lang.toLowerCase().startsWith("pt")
+    );
+
+    alert(
+      portugues.length
+        ? portugues.map((v, i) =>
+            `${i + 1}. ${v.name} — ${v.lang}`
+          ).join("\n")
+        : "Nenhuma voz em português encontrada."
+    );
+  }
+
+  if (synth.getVoices().length > 0) {
+    listarVozes();
+  } else {
+    synth.onvoiceschanged = listarVozes;
+  }
+});
   const synth = window.speechSynthesis;
 
   if (!synth) {
