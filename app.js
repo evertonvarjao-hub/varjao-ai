@@ -1,4 +1,5 @@
 
+
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -198,7 +199,12 @@ function prepareImage(file) {
 }
 
 // ENVIAR MENSAGEM
-async function sendMessage(text, imageData = null) {
+// speakResponse define se o VARJÃO deve falar
+async function sendMessage(
+  text,
+  imageData = null,
+  speakResponse = false
+) {
   const clean = String(text || "").trim();
 
   if ((!clean && !imageData) || busy) return;
@@ -253,8 +259,10 @@ async function sendMessage(text, imageData = null) {
 
     addMessage("assistant", answer);
 
-    // INICIAR VOZ NATURAL
-    speak(answer);
+    // SÓ FALA QUANDO A MENSAGEM VEIO DO MICROFONE
+    if (speakResponse) {
+      speak(answer);
+    }
 
     if (imageData) {
       pendingImage = null;
@@ -275,9 +283,10 @@ async function sendMessage(text, imageData = null) {
 }
 
 // ENVIO PELO CAMPO DE TEXTO
+// NÃO ATIVA A VOZ
 form?.addEventListener("submit", event => {
   event.preventDefault();
-  sendMessage(promptInput.value, pendingImage);
+  sendMessage(promptInput.value, pendingImage, false);
 });
 
 // SELEÇÃO DE IMAGEM
@@ -357,10 +366,12 @@ if (SpeechRecognition && micBtn) {
         : "FALHA NO MICROFONE";
   };
 
+  // MICROFONE ATIVA A RESPOSTA FALADA
   recognition.onresult = event => {
     sendMessage(
       event.results[0][0].transcript,
-      pendingImage
+      pendingImage,
+      true
     );
   };
 
