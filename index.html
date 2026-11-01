@@ -65,34 +65,19 @@
           <button class="send-btn" type="submit" aria-label="Enviar">➤</button>
         </form>
 
-        
-<div class="controls">
-  <button id="micBtn" class="mic-btn" type="button">
-    <span>🎙</span> FALAR
-  </button>
-
-  <label for="imageInput" class="mic-btn">
-    <span>📷</span> ENVIAR FOTO
-  </label>
-
-  <input
-    id="imageInput"
-    type="file"
-    accept="image/*"
-    style="display: none;"
-  >
-
-  <label class="voice-choice">VOZ
-    <select id="voiceSelect" aria-label="Escolher voz">
-      <option value="male" selected>Masculina</option>
-      <option value="off">Silenciosa</option>
-    </select>
-  </label>
-</div>
-
+        <div class="controls">
           <button id="micBtn" class="mic-btn" type="button">
-            <span>🎙</span> FALAR
+            🎙 FALAR
           </button>
+
+          <label for="imageInput" class="add-btn" aria-label="Adicionar foto">+</label>
+
+          <input
+            id="imageInput"
+            type="file"
+            accept="image/*"
+            style="display:none"
+          >
 
           <label class="voice-choice">VOZ
             <select id="voiceSelect" aria-label="Escolher voz">
@@ -114,3 +99,4 @@
   <script src="/app.js"></script>
 </body>
 </html>
+
