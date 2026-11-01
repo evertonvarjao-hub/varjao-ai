@@ -1,4 +1,3 @@
-
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -27,6 +26,8 @@ let audioContext = null;
 let currentSource = null;
 let currentAudio = null;
 let currentAudioUrl = null;
+let playbackSequence = 0;
+let currentPlaybackResolve = null;
 
 let microphoneStream = null;
 let mediaRecorder = null;
@@ -42,13 +43,8 @@ function loadLocalData() {
     const savedHistory = localStorage.getItem(HISTORY_KEY);
     const savedMemories = localStorage.getItem(MEMORY_KEY);
 
-    history = savedHistory
-      ? JSON.parse(savedHistory)
-      : [];
-
-    memories = savedMemories
-      ? JSON.parse(savedMemories)
-      : [];
+    history = savedHistory ? JSON.parse(savedHistory) : [];
+    memories = savedMemories ? JSON.parse(savedMemories) : [];
 
     if (!Array.isArray(history)) history = [];
     if (!Array.isArray(memories)) memories = [];
@@ -73,11 +69,7 @@ function loadLocalData() {
 function saveHistory() {
   try {
     history = history.slice(-40);
-
-    localStorage.setItem(
-      HISTORY_KEY,
-      JSON.stringify(history)
-    );
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch (error) {
     console.error("ERRO AO SALVAR HISTÓRICO:", error);
   }
@@ -86,14 +78,178 @@ function saveHistory() {
 function saveMemories() {
   try {
     memories = memories.slice(-30);
-
-    localStorage.setItem(
-      MEMORY_KEY,
-      JSON.stringify(memories)
-    );
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(memories));
   } catch (error) {
     console.error("ERRO AO SALVAR MEMÓRIA:", error);
   }
+}
+
+// MEMÓRIA AUTOMÁTICA: EVITAR DADOS SENSÍVEIS
+function containsSensitiveInformation(text) {
+  const sensitivePatterns = [
+    /\bsenha\b/i,
+    /\bpassword\b/i,
+    /\bcpf\b/i,
+    /\bcnpj\b/i,
+    /\bcartão de crédito\b/i,
+    /\bcartao de credito\b/i,
+    /\bdados bancários\b/i,
+    /\bdados bancarios\b/i,
+    /\bconta bancária\b/i,
+    /\bconta bancaria\b/i,
+    /\bpix\b/i,
+    /\bendereço completo\b/i,
+    /\bdiagnóstico\b/i,
+    /\bdiagnostico\b/i,
+    /\bdoença\b/i,
+    /\bdoenca\b/i,
+    /\bmedicamento\b/i,
+    /\bremédio\b/i,
+    /\bremedio\b/i,
+    /\btratamento médico\b/i,
+    /\btratamento medico\b/i,
+    /\bansiedade\b/i,
+    /\bdepressão\b/i,
+    /\bdepressao\b/i,
+    /\bterapia\b/i,
+    /\breligião\b/i,
+    /\breligiao\b/i,
+    /\bigreja\b/i,
+    /\bpolítica\b/i,
+    /\bpolitica\b/i,
+    /\borientação sexual\b/i,
+    /\borientacao sexual\b/i,
+    /\bvida sexual\b/i,
+    /\braça\b/i,
+    /\braca\b/i,
+    /\betnia\b/i,
+    /\betnia\b/i
+  ];
+
+  return sensitivePatterns.some(pattern => pattern.test(text));
+}
+
+// MEMÓRIA AUTOMÁTICA: IDENTIFICAR INFORMAÇÕES ÚTEIS
+function autoRememberInformation(text) {
+  const value = String(text || "").trim();
+
+  if (value.length < 12 || value.length > 220) return;
+  if (containsSensitiveInformation(value)) return;
+
+  const lower = value.toLowerCase();
+
+  const categories = [
+    {
+      name: "Estudo",
+      triggers: [
+        "estou estudando",
+        "estudo",
+        "faço curso de",
+        "estou fazendo curso de",
+        "estou cursando"
+      ]
+    },
+    {
+      name: "Projeto",
+      triggers: [
+        "meu projeto é",
+        "meu projeto e",
+        "estou desenvolvendo",
+        "estou criando",
+        "estou trabalhando no projeto"
+      ]
+    },
+    {
+      name: "Profissão",
+      triggers: [
+        "eu trabalho como",
+        "trabalho como",
+        "minha profissão é",
+        "minha profissao e",
+        "sou técnico de enfermagem",
+        "sou tecnica de enfermagem"
+      ]
+    },
+    {
+      name: "Preferência",
+      triggers: [
+        "eu prefiro",
+        "prefiro",
+        "gosto de",
+        "não gosto de",
+        "nao gosto de",
+        "não quero",
+        "nao quero"
+      ]
+    },
+    {
+      name: "Objetivo",
+      triggers: [
+        "meu objetivo é",
+        "meu objetivo e",
+        "quero aprender",
+        "estou tentando aprender",
+        "pretendo aprender"
+      ]
+    },
+    {
+      name: "Preferência de conversa",
+      triggers: [
+        "quero que você sempre",
+        "quero que voce sempre",
+        "prefiro que você",
+        "prefiro que voce",
+        "gostaria que você",
+        "gostaria que voce"
+      ]
+    }
+  ];
+
+  const category = categories.find(item =>
+    item.triggers.some(trigger => lower.includes(trigger))
+  );
+
+  if (!category) return;
+
+  const exists = memories.some(item =>
+    item.toLowerCase() === value.toLowerCase()
+  );
+
+  if (exists) return;
+
+  // Atualiza informações da mesma categoria quando necessário.
+  if (
+    ["Estudo", "Projeto", "Profissão"].includes(category.name)
+  ) {
+    memories = memories.filter(item => {
+      const old = item.toLowerCase();
+
+      if (category.name === "Estudo") {
+        return !old.includes("estou estudando") &&
+          !old.includes("estou cursando") &&
+          !old.includes("faço curso de") &&
+          !old.includes("estudo ");
+      }
+
+      if (category.name === "Projeto") {
+        return !old.includes("meu projeto é") &&
+          !old.includes("estou desenvolvendo") &&
+          !old.includes("estou criando");
+      }
+
+      if (category.name === "Profissão") {
+        return !old.includes("trabalho como") &&
+          !old.includes("minha profissão é") &&
+          !old.includes("sou técnico de enfermagem") &&
+          !old.includes("sou tecnica de enfermagem");
+      }
+
+      return true;
+    });
+  }
+
+  memories.push(value);
+  saveMemories();
 }
 
 // EXIBIR MENSAGENS
@@ -255,7 +411,6 @@ async function startVoiceRecording() {
 
   } catch (error) {
     console.error("CAPTURA DE VOZ:", error);
-
     stopMicrophoneTracks();
 
     listenState.textContent =
@@ -335,12 +490,10 @@ async function stopVoiceRecording() {
     };
 
     reader.onerror = () => resolve(null);
-
     reader.readAsDataURL(audioBlob);
   });
 
   recordedChunks = [];
-
   return audioData;
 }
 
@@ -514,9 +667,7 @@ function showMemories() {
 function forgetInformation(text) {
   const value = String(text || "").trim().toLowerCase();
 
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
   const before = memories.length;
 
@@ -591,12 +742,19 @@ Não diga que lembra de algo que não esteja nesta lista ou no histórico dispon
 
 // PARAR ÁUDIO IMEDIATAMENTE
 function stopAudio() {
+  playbackSequence++;
+
+  if (currentPlaybackResolve) {
+    const resolve = currentPlaybackResolve;
+    currentPlaybackResolve = null;
+    resolve();
+  }
+
   if (currentSource) {
     const source = currentSource;
     currentSource = null;
 
     try {
-      // Não remover onended: ele precisa liberar a Promise da fala.
       source.stop();
     } catch (_) {}
   }
@@ -646,10 +804,11 @@ function cleanSpeechText(text) {
   return result.trim();
 }
 
-// VOZ NEURAL
+// VOZ NEURAL COM PROTEÇÃO CONTRA INTERRUPÇÕES
 async function speak(text) {
   stopAudio();
 
+  const playbackId = playbackSequence;
   const speechText = cleanSpeechText(text);
 
   if (!speechText) return;
@@ -670,6 +829,8 @@ async function speak(text) {
       })
     });
 
+    if (playbackId !== playbackSequence) return;
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
@@ -680,6 +841,8 @@ async function speak(text) {
 
     const audioData = await response.arrayBuffer();
 
+    if (playbackId !== playbackSequence) return;
+
     if (!audioData.byteLength) {
       throw new Error("O áudio recebido está vazio.");
     }
@@ -689,9 +852,13 @@ async function speak(text) {
         await audioContext.resume();
       }
 
+      if (playbackId !== playbackSequence) return;
+
       const audioBuffer = await audioContext.decodeAudioData(
         audioData.slice(0)
       );
+
+      if (playbackId !== playbackSequence) return;
 
       const source = audioContext.createBufferSource();
 
@@ -701,15 +868,26 @@ async function speak(text) {
       currentSource = source;
 
       await new Promise((resolve, reject) => {
+        currentPlaybackResolve = resolve;
+
         source.onended = () => {
           if (currentSource === source) {
             currentSource = null;
+          }
+
+          if (currentPlaybackResolve === resolve) {
+            currentPlaybackResolve = null;
           }
 
           resolve();
         };
 
         try {
+          if (playbackId !== playbackSequence) {
+            resolve();
+            return;
+          }
+
           source.start(0);
 
           listenState.textContent = "VARJÃO FALANDO";
@@ -729,19 +907,40 @@ async function speak(text) {
         { type: "audio/mpeg" }
       );
 
+      if (playbackId !== playbackSequence) return;
+
       currentAudioUrl = URL.createObjectURL(blob);
       currentAudio = new Audio(currentAudioUrl);
 
       currentAudio.volume = 1;
 
       await new Promise((resolve, reject) => {
-        currentAudio.onended = resolve;
+        const audio = currentAudio;
 
-        currentAudio.onerror = () => {
+        currentPlaybackResolve = resolve;
+
+        audio.onended = () => {
+          if (currentAudio === audio) {
+            currentAudio = null;
+          }
+
+          if (currentPlaybackResolve === resolve) {
+            currentPlaybackResolve = null;
+          }
+
+          resolve();
+        };
+
+        audio.onerror = () => {
           reject(new Error("Erro na reprodução do áudio."));
         };
 
-        currentAudio.play().then(() => {
+        audio.play().then(() => {
+          if (playbackId !== playbackSequence) {
+            resolve();
+            return;
+          }
+
           listenState.textContent = "VARJÃO FALANDO";
 
           if (voiceMode) {
@@ -753,16 +952,37 @@ async function speak(text) {
     }
 
   } catch (error) {
-    console.error("ERRO NA REPRODUÇÃO:", error);
-    listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
+    if (playbackId === playbackSequence) {
+      console.error("ERRO NA REPRODUÇÃO:", error);
+      listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
+    }
 
   } finally {
-    stopAudio();
+    if (playbackId === playbackSequence) {
+      if (currentSource) {
+        try {
+          currentSource.stop();
+        } catch (_) {}
+        currentSource = null;
+      }
 
-    if (voiceMode) {
-      listenState.textContent = "PREPARANDO PARA OUVIR";
-    } else {
-      listenState.textContent = "AGUARDANDO COMANDO";
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      if (currentAudioUrl) {
+        URL.revokeObjectURL(currentAudioUrl);
+        currentAudioUrl = null;
+      }
+
+      speaking = false;
+
+      if (voiceMode) {
+        listenState.textContent = "PREPARANDO PARA OUVIR";
+      } else {
+        listenState.textContent = "AGUARDANDO COMANDO";
+      }
     }
   }
 }
@@ -887,6 +1107,9 @@ async function sendMessage(
 
       return;
     }
+
+    // APRENDIZADO AUTOMÁTICO SELETIVO
+    autoRememberInformation(messageText);
   }
 
   listenState.textContent = imageData
@@ -905,7 +1128,6 @@ async function sendMessage(
     }
 
     const memoryContext = buildMemoryContext();
-
     const messagesForAI = history.slice(-6);
 
     if (memoryContext && messagesForAI.length) {
@@ -947,7 +1169,6 @@ async function sendMessage(
     });
 
     saveHistory();
-
     addMessage("assistant", answer);
 
     if (imageData) {
