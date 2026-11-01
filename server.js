@@ -1,13 +1,18 @@
 
+
 const express = require("express");
 const { EdgeTTS } = require("node-edge-tts");
+const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(__dirname));
 
-// Status do sistema
+// STATUS DO SISTEMA
 app.get("/api/status", (_req, res) => {
   res.json({
     ok: true,
@@ -15,8 +20,10 @@ app.get("/api/status", (_req, res) => {
   });
 });
 
-// VOZ NEURAL DO VARJÃO
+// VOZ NEURAL MASCULINA DO VARJÃO
 app.post("/api/tts", async (req, res) => {
+  let audioPath = null;
+
   try {
     const text = String(req.body.text || "").trim();
 
@@ -32,6 +39,11 @@ app.post("/api/tts", async (req, res) => {
       });
     }
 
+    audioPath = path.join(
+      os.tmpdir(),
+      `varjao-${crypto.randomUUID()}.mp3`
+    );
+
     const tts = new EdgeTTS({
       voice: "pt-BR-AntonioNeural",
       lang: "pt-BR",
@@ -39,23 +51,20 @@ app.post("/api/tts", async (req, res) => {
       rate: "-5%",
       pitch: "-2%",
       volume: "+0%",
-      timeout: 30000
+      timeout: 60000
     });
 
-    const audioChunks = [];
+    // GERAR ARQUIVO DE ÁUDIO
+    await tts.ttsPromise(text, audioPath);
 
-    for await (const chunk of tts.streamAudio(text)) {
-      if (Buffer.isBuffer(chunk)) {
-        audioChunks.push(chunk);
-      }
+    // LER O MP3 GERADO
+    const audio = await fs.readFile(audioPath);
+
+    if (!audio.length) {
+      throw new Error("O arquivo de áudio está vazio.");
     }
 
-    if (!audioChunks.length) {
-      throw new Error("Nenhum áudio foi gerado.");
-    }
-
-    const audio = Buffer.concat(audioChunks);
-
+    // ENVIAR ÁUDIO PARA O APLICATIVO
     res.set({
       "Content-Type": "audio/mpeg",
       "Content-Length": audio.length,
@@ -65,12 +74,17 @@ app.post("/api/tts", async (req, res) => {
     res.send(audio);
 
   } catch (error) {
-    console.error("Erro na voz neural:", error);
+    console.error("ERRO NA VOZ NEURAL:", error);
 
     if (!res.headersSent) {
       res.status(500).json({
-        error: "Não foi possível gerar a voz do VARJÃO."
+        error: "Falha ao gerar áudio: " + error.message
       });
+    }
+
+  } finally {
+    if (audioPath) {
+      await fs.unlink(audioPath).catch(() => {});
     }
   }
 });
@@ -146,7 +160,11 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    const timeout = setTimeout(
+      () => controller.abort(),
+      60000
+    );
 
     let response;
 
@@ -174,6 +192,7 @@ app.post("/api/chat", async (req, res) => {
           })
         }
       );
+
     } finally {
       clearTimeout(timeout);
     }
@@ -181,7 +200,7 @@ app.post("/api/chat", async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Erro Groq:", data);
+      console.error("ERRO GROQ:", data);
 
       return res.status(response.status).json({
         error: data.error?.message || "Erro ao consultar Groq."
@@ -194,7 +213,7 @@ app.post("/api/chat", async (req, res) => {
     res.json({ answer });
 
   } catch (err) {
-    console.error("Erro no servidor:", err);
+    console.error("ERRO NO SERVIDOR:", err);
 
     res.status(err.name === "AbortError" ? 504 : 500).json({
       error: err.name === "AbortError"
@@ -204,6 +223,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
+// INICIAR SERVIDOR
 const port = process.env.PORT || 3000;
 
 app.listen(port, () => {
