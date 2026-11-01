@@ -1,5 +1,4 @@
 
-
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -126,38 +125,57 @@ function stopAudio() {
 function cleanSpeechText(text) {
   let result = String(text || "");
 
-  // Remover blocos de código
+  // REMOVER BLOCOS DE CÓDIGO
   result = result.replace(/```[\s\S]*?```/g, " ");
 
-  // Remover títulos
+  // REMOVER TÍTULOS
   result = result.replace(/^#{1,6}\s+.*$/gm, " ");
 
-  // Remover marcadores de listas
+  // REMOVER MARCADORES DE LISTAS
   result = result.replace(/^\s*[-*•]\s+/gm, ". ");
 
-  // Remover numeração de listas
+  // REMOVER NUMERAÇÃO DE LISTAS
   result = result.replace(/^\s*\d+[.)]\s+/gm, ". ");
 
-  // Remover citações e linhas decorativas
+  // REMOVER CITAÇÕES E LINHAS DECORATIVAS
   result = result.replace(/^\s*>\s?/gm, "");
   result = result.replace(/^\s*[-_]{3,}\s*$/gm, " ");
 
-  // Manter somente o texto dos links
+  // MANTER SOMENTE O TEXTO DOS LINKS
   result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
-  // Remover endereços da internet
+  // REMOVER ENDEREÇOS DA INTERNET
   result = result.replace(/https?:\/\/\S+/gi, "");
 
-  // Remover símbolos de formatação
+  // REMOVER CÓDIGOS DE EMOJIS, COMO :smile:
+  result = result.replace(/:[a-z0-9_+-]{2,}:/gi, " ");
+
+  // REMOVER EMOJIS DE TECLADO, COMO 1️⃣
+  result = result.replace(/(?:[#*0-9]\uFE0F?\u20E3)/g, " ");
+
+  // REMOVER EMOJIS, BANDEIRAS E SÍMBOLOS VISUAIS
+  try {
+    result = result.replace(
+      /[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu,
+      " "
+    );
+  } catch (error) {
+    console.log("Limpeza avançada de emojis indisponível.");
+  }
+
+  // REMOVER SÍMBOLOS DE FORMATAÇÃO
   result = result.replace(/[*_~`#]/g, "");
 
-  // Transformar barras de tabelas em pausas
+  // TRANSFORMAR BARRAS DE TABELAS EM PAUSAS
   result = result.replace(/\|/g, ", ");
 
-  // Organizar espaços e pontuação
+  // ORGANIZAR ESPAÇOS E PONTUAÇÃO
   result = result.replace(/\s+/g, " ");
   result = result.replace(/\s+([,.!?;:])/g, "$1");
   result = result.replace(/([,.!?;:])([^\s])/g, "$1 $2");
+
+  // EVITAR PONTUAÇÃO REPETIDA
+  result = result.replace(/([,.!?])\1+/g, "$1");
 
   return result.trim();
 }
