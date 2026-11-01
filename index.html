@@ -1,21 +1,83 @@
 
-♛ VARJÃOPERSONAL AI
-SISTEMA PRONTO
-Foto do avatar do VARJÃO
-ASSISTENTE PESSOAL
-À sua disposição.
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080604">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VARJÃO AI">
+  <meta name="description" content="Seu assistente pessoal inteligente.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <link rel="stylesheet" href="/style.css">
+  <title>VARJÃO AI</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand-mark" href="/" aria-label="VARJÃO AI início">
+        <span class="crown">♛</span>
+        <span><strong>VARJÃO</strong><small>PERSONAL AI</small></span>
+      </a>
+      <div class="status">
+        <span class="status-light"></span>
+        <span id="statusText">SISTEMA PRONTO</span>
+      </div>
+    </header>
 
-Converse comigo por texto ou voz.
+    <main>
+      <section class="hero">
+        <div class="hero-photo-wrap">
+          <div class="hero-orbit"></div>
+          <img class="hero-photo" src="/avatar.jpg" alt="Foto do avatar do VARJÃO">
+        </div>
+        <div class="hero-copy">
+          <div class="eyebrow">ASSISTENTE PESSOAL</div>
+          <h1>À sua disposição.</h1>
+          <p>Converse comigo por texto ou voz.</p>
+          <div class="signature">VARJÃO <span>AI</span></div>
+        </div>
+      </section>
 
-VARJÃO AI
-AGUARDANDO COMANDO
-CONVERSA  LIMPAR
+      <div class="listen-state" id="listenState">AGUARDANDO COMANDO</div>
 
-VARJÃO
-Olá! Estou pronto. Como posso ajudar?
+      <section class="chat-panel">
+        <div class="chat-head">
+          <span>CONVERSA</span>
+          <button id="clearBtn" class="text-btn" type="button">LIMPAR</button>
+        </div>
 
-  ➤
-🎙 FALAR  +
-Sua chave de IA fica no servidor, nunca neste iPhone.
+        <div id="messages" class="messages" aria-live="polite">
+          <div class="message assistant">
+            <img class="message-avatar" src="/avatar.jpg" alt="">
+            <div class="message-body">
+              <span class="speaker">VARJÃO</span>
+              <p>Olá! Estou pronto. Como posso ajudar?</p>
+            </div>
+          </div>
+        </div>
 
-VARJÃO AI • VERSÃO INICIAL
+        <form id="chatForm" class="composer">
+          <input id="prompt" type="text" autocomplete="off"
+            placeholder="Fale comigo ou digite..." aria-label="Mensagem">
+          <button class="send-btn" type="submit" aria-label="Enviar">➤</button>
+        </form>
+
+        <div class="controls">
+          <button id="micBtn" class="mic-btn" type="button">
+            <span class="mic-symbol">🎙</span> FALAR
+          </button>
+          <label for="imageInput" class="add-btn" aria-label="Adicionar foto">+</label>
+          <input id="imageInput" type="file" accept="image/*" hidden>
+        </div>
+
+        <p class="privacy-note">Sua chave de IA fica no servidor, nunca neste iPhone.</p>
+      </section>
+    </main>
+    <footer>VARJÃO AI <span>•</span> VERSÃO INICIAL</footer>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
