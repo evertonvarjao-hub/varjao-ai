@@ -246,7 +246,6 @@ if (SpeechRecognition && micBtn) {
   };
   recognition.onend = () => {
     micBtn.classList.remove("active");
-    listenState.textContent = "AGUARDANDO COMANDO";
   };
   recognition.onerror = event => {
     listenState.textContent = event.error === "not-allowed" ? "PERMITA O MICROFONE" : "FALHA NO MICROFONE";
