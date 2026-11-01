@@ -33,3 +33,32 @@ main{flex:1}.hero{text-align:center;padding:30px 0 12px}.eyebrow{font-size:9px;l
 footer{text-align:center;padding:17px 0 12px;color:#526d86;font-size:8px;letter-spacing:3px}footer span{color:#4acfff}
 @keyframes pulse{0%,100%{transform:scale(.97);opacity:.85}50%{transform:scale(1.04);opacity:1}}
 @media(min-width:650px){.hero{padding-top:42px}.reactor-wrap{height:260px}.messages{height:190px}}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.add-btn {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3999c7;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #168bff, #43d5ff);
+  color: #00111e;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 12px #23bfff33;
+}
+
+.voice-choice {
+  margin-left: auto;
+}
+
