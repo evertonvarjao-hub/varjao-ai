@@ -1,4 +1,3 @@
-
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -153,7 +152,8 @@ async function startVoiceRecording() {
         })
       : new MediaRecorder(microphoneStream);
 
-    recordingMimeType = mediaRecorder.mimeType ||
+    recordingMimeType =
+      mediaRecorder.mimeType ||
       recordingMimeType ||
       "audio/webm";
 
@@ -190,7 +190,7 @@ function stopMicrophoneTracks() {
   }
 }
 
-// FINALIZAR GRAVAÇÃO E PREPARAR ÁUDIO PARA ENVIO
+// FINALIZAR GRAVAÇÃO
 async function stopVoiceRecording() {
   if (
     !mediaRecorder ||
@@ -227,9 +227,9 @@ async function stopVoiceRecording() {
     return null;
   }
 
-  // EVITAR ENVIAR GRAVAÇÕES EXCESSIVAMENTE GRANDES
+  // EVITAR GRAVAÇÕES EXCESSIVAMENTE GRANDES
   if (audioBlob.size > 5 * 1024 * 1024) {
-    console.warn("Áudio muito grande para envio.");
+    console.warn("Áudio muito grande para análise.");
     recordedChunks = [];
     return null;
   }
@@ -257,6 +257,174 @@ async function stopVoiceRecording() {
   recordedChunks = [];
 
   return audioData;
+}
+
+// ANALISAR CARACTERÍSTICAS ACÚSTICAS DA VOZ NO IPHONE
+async function analyzeVoiceAudio(voiceAudio) {
+  if (!voiceAudio?.data) {
+    return null;
+  }
+
+  try {
+    const AudioContextClass =
+      window.AudioContext || window.webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return null;
+    }
+
+    if (!audioContext) {
+      audioContext = new AudioContextClass();
+    }
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    // CONVERTER BASE64 EM ÁUDIO
+    const binary = atob(voiceAudio.data);
+    const bytes = new Uint8Array(binary.length);
+
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const audioBuffer = await audioContext.decodeAudioData(
+      bytes.buffer.slice(0)
+    );
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return null;
+    }
+
+    const channel = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+
+    // ANALISAR O ÁUDIO EM PEQUENOS INTERVALOS
+    const frameSize = Math.max(
+      1,
+      Math.floor(sampleRate * 0.02)
+    );
+
+    const levels = [];
+
+    for (
+      let start = 0;
+      start < channel.length;
+      start += frameSize
+    ) {
+      const end = Math.min(
+        start + frameSize,
+        channel.length
+      );
+
+      let sum = 0;
+
+      for (let i = start; i < end; i++) {
+        sum += channel[i] * channel[i];
+      }
+
+      const rms = Math.sqrt(sum / (end - start));
+
+      levels.push(rms);
+    }
+
+    if (!levels.length) {
+      return null;
+    }
+
+    const maximum = Math.max(...levels);
+    const average =
+      levels.reduce((sum, value) => sum + value, 0) /
+      levels.length;
+
+    // IGNORAR PEQUENOS RUÍDOS DE FUNDO
+    const threshold = Math.max(
+      0.008,
+      maximum * 0.12
+    );
+
+    const activeLevels = levels.filter(
+      value => value > threshold
+    );
+
+    if (!activeLevels.length) {
+      return null;
+    }
+
+    // 1. INTENSIDADE RELATIVA
+    // É uma estimativa dependente do microfone e da distância.
+    const activeAverage =
+      activeLevels.reduce((sum, value) => sum + value, 0) /
+      activeLevels.length;
+
+    const intensity = Math.max(
+      0,
+      Math.min(100, Math.round(activeAverage * 350))
+    );
+
+    // 2. VARIAÇÃO DA INTENSIDADE
+    // Mede mudanças no volume ao longo da fala.
+    const activeMean = activeAverage;
+
+    const variance =
+      activeLevels.reduce((sum, value) => {
+        return sum + Math.pow(value - activeMean, 2);
+      }, 0) / activeLevels.length;
+
+    const deviation = Math.sqrt(variance);
+
+    const variation = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round((deviation / Math.max(activeMean, 0.001)) * 65)
+      )
+    );
+
+    // 3. RITMO APROXIMADO
+    // Conta mudanças entre silêncio e atividade sonora.
+    // Não representa palavras por minuto.
+    let transitions = 0;
+    let wasActive = false;
+
+    for (const level of levels) {
+      const isActive = level > threshold;
+
+      if (isActive && !wasActive) {
+        transitions++;
+      }
+
+      wasActive = isActive;
+    }
+
+    const durationSeconds = channel.length / sampleRate;
+
+    const transitionsPerSecond =
+      transitions / Math.max(durationSeconds, 0.1);
+
+    const pace = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(transitionsPerSecond * 18)
+      )
+    );
+
+    return {
+      intensity,
+      variation,
+      pace
+    };
+
+  } catch (error) {
+    console.warn(
+      "Não foi possível analisar a entonação:",
+      error
+    );
+
+    return null;
+  }
 }
 
 // PARAR ÁUDIO
@@ -341,6 +509,7 @@ async function speak(text) {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+
       throw new Error(
         errorData.error || "Falha ao gerar voz neural."
       );
@@ -373,6 +542,7 @@ async function speak(text) {
           if (currentSource === source) {
             currentSource = null;
           }
+
           resolve();
         };
 
@@ -529,6 +699,13 @@ async function sendMessage(
   statusText.textContent = "CONECTANDO";
 
   try {
+    // ANALISAR A VOZ LOCALMENTE NO IPHONE
+    let voiceTone = null;
+
+    if (voiceAudio) {
+      voiceTone = await analyzeVoiceAudio(voiceAudio);
+    }
+
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
@@ -538,8 +715,9 @@ async function sendMessage(
         messages: history,
         image: imageData || undefined,
 
-        // ÁUDIO ORIGINAL PARA ANÁLISE NO SERVIDOR
-        voiceAudio: voiceAudio || undefined
+        // ENVIAR SOMENTE OS INDICADORES NUMÉRICOS
+        // A GRAVAÇÃO ORIGINAL NÃO É ENVIADA AO SERVIDOR
+        voiceTone: voiceTone || undefined
       })
     });
 
@@ -749,6 +927,7 @@ if (SpeechRecognition && micBtn) {
         true,
         voiceAudio
       );
+
       return;
     }
 
@@ -770,6 +949,7 @@ if (SpeechRecognition && micBtn) {
     ) {
       voiceMode = false;
       stopMicrophoneTracks();
+
       listenState.textContent = "PERMITA O MICROFONE";
       return;
     }
