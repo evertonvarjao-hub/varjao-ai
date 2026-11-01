@@ -1,12 +1,13 @@
 
-
 const express = require("express");
+const { EdgeTTS } = require("node-edge-tts");
 
 const app = express();
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(__dirname));
 
+// Status do sistema
 app.get("/api/status", (_req, res) => {
   res.json({
     ok: true,
@@ -14,6 +15,67 @@ app.get("/api/status", (_req, res) => {
   });
 });
 
+// VOZ NEURAL DO VARJÃO
+app.post("/api/tts", async (req, res) => {
+  try {
+    const text = String(req.body.text || "").trim();
+
+    if (!text) {
+      return res.status(400).json({
+        error: "Nenhum texto recebido para falar."
+      });
+    }
+
+    if (text.length > 2500) {
+      return res.status(400).json({
+        error: "Texto muito longo para reprodução."
+      });
+    }
+
+    const tts = new EdgeTTS({
+      voice: "pt-BR-AntonioNeural",
+      lang: "pt-BR",
+      outputFormat: "audio-24khz-96kbitrate-mono-mp3",
+      rate: "-5%",
+      pitch: "-2%",
+      volume: "+0%",
+      timeout: 30000
+    });
+
+    const audioChunks = [];
+
+    for await (const chunk of tts.streamAudio(text)) {
+      if (Buffer.isBuffer(chunk)) {
+        audioChunks.push(chunk);
+      }
+    }
+
+    if (!audioChunks.length) {
+      throw new Error("Nenhum áudio foi gerado.");
+    }
+
+    const audio = Buffer.concat(audioChunks);
+
+    res.set({
+      "Content-Type": "audio/mpeg",
+      "Content-Length": audio.length,
+      "Cache-Control": "no-store"
+    });
+
+    res.send(audio);
+
+  } catch (error) {
+    console.error("Erro na voz neural:", error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Não foi possível gerar a voz do VARJÃO."
+      });
+    }
+  }
+});
+
+// CONVERSA COM A INTELIGÊNCIA ARTIFICIAL
 app.post("/api/chat", async (req, res) => {
   try {
     if (!process.env.GROQ_API_KEY) {
