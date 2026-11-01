@@ -61,27 +61,63 @@ function addImageMessage(imageData, content) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-function speak(text) {
-  if (!window.speechSynthesis) return;
-  const synth = window.speechSynthesis;
-  synth.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "pt-BR";
-  utterance.rate = 0.95;
-  utterance.pitch = 0.82;
+let currentAudio = null;
+let currentAudioUrl = null;
 
-  const voices = synth.getVoices();
-  const portugueseVoices = voices.filter(v => v.lang?.toLowerCase().startsWith("pt"));
-  const maleVoice = portugueseVoices.find(v =>
-    /male|daniel|jorge|ricardo|mascul|antonio|brasil.*(masc|male)/i.test(v.name)
-  );
+async function speak(text) {
+  try {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
 
-  if (maleVoice) utterance.voice = maleVoice;
-  else if (portugueseVoices.length) utterance.voice = portugueseVoices[0];
+    if (currentAudioUrl) {
+      URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = null;
+    }
 
-  synth.speak(utterance);
+    listenState.textContent = "PREPARANDO VOZ NATURAL";
+
+    const response = await fetch("/api/tts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: String(text || "").slice(0, 2500)
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error("Falha ao gerar voz neural.");
+    }
+
+    const audioBlob = await response.blob();
+
+    currentAudioUrl = URL.createObjectURL(audioBlob);
+    currentAudio = new Audio(currentAudioUrl);
+    currentAudio.volume = 1;
+
+    currentAudio.onplay = () => {
+      listenState.textContent = "VARJÃO FALANDO";
+    };
+
+    currentAudio.onended = () => {
+      listenState.textContent = "AGUARDANDO COMANDO";
+      URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = null;
+      currentAudio = null;
+    };
+
+    await currentAudio.play();
+
+  } catch (error) {
+    console.error("Erro na voz:", error);
+    listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
+  }
 }
+
 
 function prepareImage(file) {
   return new Promise((resolve, reject) => {
