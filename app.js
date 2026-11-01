@@ -4,8 +4,8 @@ const messagesEl = document.getElementById("messages");
 const micBtn = document.getElementById("micBtn");
 const listenState = document.getElementById("listenState");
 const statusText = document.getElementById("statusText");
-const testVoiceBtn = document.getElementById("testVoiceBtn");
 const voiceSelect = document.getElementById("voiceSelect");
+
 let history = [];
 let recognition = null;
 let busy = false;
@@ -24,222 +24,159 @@ function addMessage(role, content) {
 }
 
 function speak(text) {
-  if (!("speechSynthesis" in window)) {
-    console.error("Síntese de voz não disponível.");
-    return;
-  }
-
-  if (voiceSelect.value === "off") return;
+  if (!("speechSynthesis" in window) || voiceSelect?.value === "off") return;
 
   const synth = window.speechSynthesis;
-
   synth.cancel();
 
-  function falar() {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "pt-BR";
-    utterance.rate = 1;
-    utterance.pitch = 1;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "pt-BR";
+  utterance.rate = 0.95;
+  utterance.pitch = 0.9;
 
-    const voices = synth.getVoices();
-    const portugues = voices.filter(v =>
-      v.lang && v.lang.toLowerCase().startsWith("pt")
-    );
+  const voices = synth.getVoices();
+  const ptVoices = voices.filter(v =>
+    v.lang?.toLowerCase().startsWith("pt")
+  );
 
-    const preferida = portugues.find(v =>
-      voiceSelect.value === "female"
-        ? /female|luciana|joana|maria/i.test(v.name)
-        : /male|daniel|jorge|ricardo/i.test(v.name)
-    );
+  const maleVoice = ptVoices.find(v =>
+    /male|daniel|jorge|ricardo|mascul/i.test(v.name)
+  );
 
-    if (preferida || portugues[0]) {
-      utterance.voice = preferida || portugues[0];
-    }
+  if (maleVoice) utterance.voice = maleVoice;
+  else if (ptVoices[0]) utterance.voice = ptVoices[0];
 
-    utterance.onerror = (event) => {
-      console.error("Erro na reprodução de voz:", event.error);
-    };
-
-    synth.speak(utterance);
-  }
-
-  if (synth.getVoices().length > 0) {
-    falar();
-  } else {
-    synth.onvoiceschanged = () => {
-      synth.onvoiceschanged = null;
-      falar();
-    };
-
-    setTimeout(() => {
-      if (!synth.speaking && !synth.pending) {
-        falar();
-      }
-    }, 1000);
-  }
+  synth.speak(utterance);
 }
 
 async function sendMessage(text) {
-  const clean = text.trim();
+  const clean = String(text || "").trim();
   if (!clean || busy) return;
+
   busy = true;
   promptInput.value = "";
   addMessage("user", clean);
   history.push({ role: "user", content: clean });
+
   listenState.textContent = "PROCESSANDO";
   statusText.textContent = "CONECTANDO";
+
   try {
-    const r = await fetch("/api/chat", {
+    const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: history })
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Erro ao conversar.");
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erro ao conversar.");
+    }
+
     const answer = data.answer || "Não consegui responder.";
+
     history.push({ role: "assistant", content: answer });
     addMessage("assistant", answer);
     speak(answer);
+
     listenState.textContent = "AGUARDANDO COMANDO";
     statusText.textContent = "SISTEMA PRONTO";
-  } catch (err) {
-    addMessage("assistant", `Aviso: ${err.message}`);
+
+  } catch (error) {
+    addMessage("assistant", "Aviso: " + error.message);
     listenState.textContent = "VERIFIQUE A CONEXÃO";
     statusText.textContent = "ATENÇÃO";
+
   } finally {
     busy = false;
   }
 }
 
-form.addEventListener("submit", e => {
-  e.preventDefault();
-
-  alert("Botão enviar acionado!");
-
-  const mensagem = promptInput.value.trim();
-
-  if (!mensagem) {
-    alert("A mensagem está vazia!");
-    return;
-  }
-
-  addMessage("user", mensagem);
-  promptInput.value = "";
-
-  sendMessageJaExibida(mensagem);
+form?.addEventListener("submit", event => {
+  event.preventDefault();
+  sendMessage(promptInput.value);
 });
 
-async function sendMessageJaExibida(text) {
-  if (busy) return;
-
-  busy = true;
-  history.push({ role: "user", content: text });
-
-  try {
-    const r = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: history })
-    });
-
-    const data = await r.json();
-
-    if (!r.ok) throw new Error(data.error || "Erro na conexão.");
-
-    history.push({ role: "assistant", content: data.answer });
-    addMessage("assistant", data.answer);
-    speak(data.answer);
-
-  } catch (err) {
-    addMessage("assistant", "Aviso: " + err.message);
-  } finally {
-    busy = false;
-  }
-}
-
-document.getElementById("clearBtn").addEventListener("click", () => {
+document.getElementById("clearBtn")?.addEventListener("click", () => {
   history = [];
   messagesEl.replaceChildren();
-  addMessage("assistant", "Conversa limpa. Estou pronto para começar novamente.");
+
+  addMessage(
+    "assistant",
+    "Conversa limpa. Estou pronto para começar novamente."
+  );
+
   window.speechSynthesis?.cancel();
 });
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (SpeechRecognition) {
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition && micBtn) {
   recognition = new SpeechRecognition();
   recognition.lang = "pt-BR";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
+
   recognition.onstart = () => {
     micBtn.classList.add("active");
     micBtn.innerHTML = "<span>●</span> OUVINDO";
     listenState.textContent = "ESTOU OUVINDO";
   };
+
   recognition.onend = () => {
     micBtn.classList.remove("active");
     micBtn.innerHTML = "<span>🎙</span> FALAR";
-    if (listenState.textContent === "ESTOU OUVINDO") listenState.textContent = "AGUARDANDO COMANDO";
+
+    if (listenState.textContent === "ESTOU OUVINDO") {
+      listenState.textContent = "AGUARDANDO COMANDO";
+    }
   };
-  recognition.onerror = e => {
-    listenState.textContent = e.error === "not-allowed" ? "PERMITA O MICROFONE" : "FALHA NO MICROFONE";
+
+  recognition.onerror = event => {
+    listenState.textContent =
+      event.error === "not-allowed"
+        ? "PERMITA O MICROFONE"
+        : "FALHA NO MICROFONE";
   };
-  recognition.onresult = e => sendMessage(e.results[0][0].transcript);
+
+  recognition.onresult = event => {
+    sendMessage(event.results[0][0].transcript);
+  };
+
   micBtn.addEventListener("click", () => {
-    try { recognition.start(); } catch (_) { recognition.stop(); }
+    try {
+      recognition.start();
+    } catch (_) {
+      recognition.stop();
+    }
   });
-} else {
+
+} else if (micBtn) {
   micBtn.addEventListener("click", () => {
-    listenState.textContent = "DITADO NÃO DISPONÍVEL NESTE NAVEGADOR";
+    listenState.textContent =
+      "DITADO NÃO DISPONÍVEL NESTE NAVEGADOR";
     promptInput.focus();
   });
-  micBtn.title = "Use o ditado do teclado do iPhone se o reconhecimento não estiver disponível.";
 }
 
-fetch("/api/status").then(r => r.json()).then(s => {
-  if (!s.configured) {
-    statusText.textContent = "CONFIGURAÇÃO PENDENTE";
-    listenState.textContent = "CONECTE A IA NO SERVIDOR";
-  }
-}).catch(() => { statusText.textContent = "OFFLINE"; });
+fetch("/api/status")
+  .then(response => response.json())
+  .then(status => {
+    if (!status.configured) {
+      statusText.textContent = "CONFIGURAÇÃO PENDENTE";
+      listenState.textContent = "CONECTE A IA NO SERVIDOR";
+    }
+  })
+  .catch(() => {
+    statusText.textContent = "OFFLINE";
+  });
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
-}testVoiceBtn.addEventListener("click", () => {
-  const synth = window.speechSynthesis;
-
-  if (!synth) {
-    alert("Este navegador não oferece reprodução de voz.");
-    return;
-  }
-
-  const vozes = synth.getVoices();
-
-  const portugues = vozes.filter(v =>
-    v.lang && v.lang.toLowerCase().startsWith("pt")
-  );
-
-  if (portugues.length === 0) {
-    alert("Nenhuma voz em português encontrada no iPhone.");
-    return;
-  }
-
-  const lista = portugues.map((v, i) =>
-    `${i + 1}. ${v.name} — ${v.lang}`
-  ).join("\n");
-
-  alert("VOZES DISPONÍVEIS:\n\n" + lista);
-
-  const teste = new SpeechSynthesisUtterance(
-    "Olá! Eu sou o VARJÃO. Minha voz está funcionando."
-  );
-
-  teste.lang = "pt-BR";
-  teste.volume = 1;
-  teste.rate = 0.9;
-
-  teste.voice = portugues[0];
-
-  synth.cancel();
-  synth.speak(teste);
-});
-});
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .catch(() => {});
+  });
+}
