@@ -223,8 +223,16 @@ document.getElementById("clearBtn")?.addEventListener("click", () => {
   promptInput.placeholder = "Fale comigo ou digite...";
   messagesEl.replaceChildren();
   addMessage("assistant", "Conversa limpa. Estou pronto para começar novamente.");
-  window.speechSynthesis?.cancel();
-});
+if (currentAudio) {
+  currentAudio.pause();
+  currentAudio.currentTime = 0;
+  currentAudio = null;
+}
+
+if (currentAudioUrl) {
+  URL.revokeObjectURL(currentAudioUrl);
+  currentAudioUrl = null;
+}});
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (SpeechRecognition && micBtn) {
