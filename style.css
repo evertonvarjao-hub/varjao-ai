@@ -445,3 +445,34 @@ footer span {
     height: 230px;
   }
 }
+
+/* MANTER O APP FIXO NA LARGURA DA TELA */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 760px;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+main,
+.hero,
+.chat-panel,
+.composer {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.hero > *,
+.chat-panel > * {
+  min-width: 0;
+}
+
