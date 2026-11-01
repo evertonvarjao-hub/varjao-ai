@@ -104,7 +104,7 @@ async function speak(text) {
     };
 
     currentAudio.onended = () => {
-      listenState.textContent = "AGUARDANDO COMANDO";
+      
       URL.revokeObjectURL(currentAudioUrl);
       currentAudioUrl = null;
       currentAudio = null;
