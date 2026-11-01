@@ -1,5 +1,4 @@
 
-
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -11,6 +10,14 @@ const imageInput = document.getElementById("imageInput");
 let history = [];
 let busy = false;
 let pendingImage = null;
+
+let voiceMode = false;
+let recognitionActive = false;
+let speaking = false;
+let restartTimer = null;
+
+let audioContext = null;
+let currentSource = null;
 let currentAudio = null;
 let currentAudioUrl = null;
 
@@ -40,6 +47,7 @@ function addMessage(role, content) {
   body.append(who, p);
   el.appendChild(body);
   messagesEl.appendChild(el);
+
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
@@ -65,11 +73,40 @@ function addImageMessage(imageData, content) {
   body.append(who, img, p);
   el.appendChild(body);
   messagesEl.appendChild(el);
+
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// PARAR ÁUDIO ATUAL
+// PREPARAR ÁUDIO DO IPHONE
+async function unlockAudio() {
+  try {
+    const AudioContextClass =
+      window.AudioContext || window.webkitAudioContext;
+
+    if (AudioContextClass) {
+      if (!audioContext) {
+        audioContext = new AudioContextClass();
+      }
+
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao preparar áudio:", error);
+  }
+}
+
+// PARAR ÁUDIO
 function stopAudio() {
+  if (currentSource) {
+    try {
+      currentSource.stop();
+    } catch (_) {}
+
+    currentSource = null;
+  }
+
   if (currentAudio) {
     currentAudio.pause();
     currentAudio.currentTime = 0;
@@ -80,15 +117,18 @@ function stopAudio() {
     URL.revokeObjectURL(currentAudioUrl);
     currentAudioUrl = null;
   }
+
+  speaking = false;
 }
 
-// VOZ NEURAL MASCULINA DO VARJÃO
+// VOZ NEURAL MASCULINA
 async function speak(text) {
   stopAudio();
 
-  try {
-    listenState.textContent = "PREPARANDO VOZ NATURAL";
+  speaking = true;
+  listenState.textContent = "PREPARANDO VOZ NATURAL";
 
+  try {
     const response = await fetch("/api/tts", {
       method: "POST",
       headers: {
@@ -100,37 +140,89 @@ async function speak(text) {
     });
 
     if (!response.ok) {
-      throw new Error("Falha ao gerar voz neural.");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || "Falha ao gerar voz neural."
+      );
     }
 
-    const audioBlob = await response.blob();
+    const audioData = await response.arrayBuffer();
 
-    if (!audioBlob.size) {
+    if (!audioData.byteLength) {
       throw new Error("O áudio recebido está vazio.");
     }
 
-    currentAudioUrl = URL.createObjectURL(audioBlob);
-    currentAudio = new Audio(currentAudioUrl);
-    currentAudio.volume = 1;
+    // REPRODUÇÃO PELO AUDIOCONTEXT
+    if (audioContext) {
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
 
-    currentAudio.onplay = () => {
-      listenState.textContent = "VARJÃO FALANDO";
-    };
+      const audioBuffer = await audioContext.decodeAudioData(
+        audioData.slice(0)
+      );
 
-    currentAudio.onended = () => {
-      stopAudio();
-      listenState.textContent = "AGUARDANDO COMANDO";
-    };
+      const source = audioContext.createBufferSource();
 
-    currentAudio.onerror = () => {
-      listenState.textContent = "ERRO NA REPRODUÇÃO";
-    };
+      source.buffer = audioBuffer;
+      source.connect(audioContext.destination);
 
-    await currentAudio.play();
+      currentSource = source;
+
+      await new Promise((resolve, reject) => {
+        source.onended = () => {
+          if (currentSource === source) {
+            currentSource = null;
+          }
+          resolve();
+        };
+
+        try {
+          source.start(0);
+          listenState.textContent = "VARJÃO FALANDO";
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+    } else {
+      // ALTERNATIVA PARA NAVEGADORES SEM AUDIOCONTEXT
+      const blob = new Blob(
+        [audioData],
+        { type: "audio/mpeg" }
+      );
+
+      currentAudioUrl = URL.createObjectURL(blob);
+      currentAudio = new Audio(currentAudioUrl);
+
+      currentAudio.volume = 1;
+
+      await new Promise((resolve, reject) => {
+        currentAudio.onended = resolve;
+
+        currentAudio.onerror = () => {
+          reject(new Error("Erro na reprodução do áudio."));
+        };
+
+        currentAudio.play().then(() => {
+          listenState.textContent = "VARJÃO FALANDO";
+        }).catch(reject);
+      });
+    }
 
   } catch (error) {
-    console.error("Erro na voz:", error);
+    console.error("ERRO NA REPRODUÇÃO:", error);
+
     listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
+
+  } finally {
+    stopAudio();
+
+    if (voiceMode) {
+      listenState.textContent = "PREPARANDO PARA OUVIR";
+    } else {
+      listenState.textContent = "AGUARDANDO COMANDO";
+    }
   }
 }
 
@@ -157,12 +249,14 @@ function prepareImage(file) {
 
       img.onload = () => {
         const maxSize = 1440;
+
         const scale = Math.min(
           1,
           maxSize / Math.max(img.width, img.height)
         );
 
         const canvas = document.createElement("canvas");
+
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
 
@@ -181,10 +275,13 @@ function prepareImage(file) {
           canvas.height
         );
 
-        const imageData = canvas.toDataURL("image/jpeg", 0.78);
+        const imageData = canvas.toDataURL(
+          "image/jpeg",
+          0.78
+        );
 
         if (imageData.length > 7500000) {
-          reject(new Error("A foto ficou muito grande. Escolha outra."));
+          reject(new Error("A foto ficou muito grande."));
           return;
         }
 
@@ -199,7 +296,6 @@ function prepareImage(file) {
 }
 
 // ENVIAR MENSAGEM
-// speakResponse define se o VARJÃO deve falar
 async function sendMessage(
   text,
   imageData = null,
@@ -247,7 +343,9 @@ async function sendMessage(
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "Erro ao conversar.");
+      throw new Error(
+        data.error || "Erro ao conversar."
+      );
     }
 
     const answer = data.answer || "Não consegui responder.";
@@ -259,9 +357,9 @@ async function sendMessage(
 
     addMessage("assistant", answer);
 
-    // SÓ FALA QUANDO A MENSAGEM VEIO DO MICROFONE
-    if (speakResponse) {
-      speak(answer);
+    // FALAR QUANDO A PERGUNTA VEIO DO MICROFONE
+    if (speakResponse && voiceMode) {
+      await speak(answer);
     }
 
     if (imageData) {
@@ -274,19 +372,72 @@ async function sendMessage(
 
   } catch (error) {
     addMessage("assistant", "Aviso: " + error.message);
+
     listenState.textContent = "VERIFIQUE A CONEXÃO";
     statusText.textContent = "ATENÇÃO";
 
   } finally {
     busy = false;
+
+    // VOLTAR A OUVIR AUTOMATICAMENTE
+    if (voiceMode) {
+      listenState.textContent = "VOU OUVIR VOCÊ NOVAMENTE";
+      startListening();
+    }
   }
 }
 
+// INICIAR ESCUTA
+function startListening() {
+  if (!voiceMode || busy || speaking || recognitionActive) {
+    return;
+  }
+
+  if (!recognition) return;
+
+  clearTimeout(restartTimer);
+
+  restartTimer = setTimeout(() => {
+    if (!voiceMode || busy || speaking || recognitionActive) {
+      return;
+    }
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.log("Aguardando microfone:", error.message);
+    }
+  }, 500);
+}
+
+// ENCERRAR CONVERSA POR VOZ
+function stopListening() {
+  voiceMode = false;
+
+  clearTimeout(restartTimer);
+
+  if (recognitionActive && recognition) {
+    try {
+      recognition.stop();
+    } catch (_) {}
+  }
+
+  stopAudio();
+
+  micBtn?.classList.remove("active");
+
+  listenState.textContent = "CONVERSA POR VOZ ENCERRADA";
+}
+
 // ENVIO PELO CAMPO DE TEXTO
-// NÃO ATIVA A VOZ
 form?.addEventListener("submit", event => {
   event.preventDefault();
-  sendMessage(promptInput.value, pendingImage, false);
+
+  sendMessage(
+    promptInput.value,
+    pendingImage,
+    false
+  );
 });
 
 // SELEÇÃO DE IMAGEM
@@ -300,7 +451,9 @@ imageInput?.addEventListener("change", async () => {
 
     pendingImage = await prepareImage(file);
 
-    promptInput.placeholder = "O que deseja saber sobre esta foto?";
+    promptInput.placeholder =
+      "O que deseja saber sobre esta foto?";
+
     promptInput.focus();
 
     listenState.textContent = "FOTO PRONTA PARA ENVIAR";
@@ -326,7 +479,7 @@ document.getElementById("clearBtn")?.addEventListener("click", () => {
 
   promptInput.placeholder = "Fale comigo ou digite...";
 
-  stopAudio();
+  stopListening();
 
   messagesEl.replaceChildren();
 
@@ -343,44 +496,86 @@ const SpeechRecognition =
   window.SpeechRecognition ||
   window.webkitSpeechRecognition;
 
+let recognition = null;
+
 if (SpeechRecognition && micBtn) {
-  const recognition = new SpeechRecognition();
+  recognition = new SpeechRecognition();
 
   recognition.lang = "pt-BR";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
+  recognition.continuous = false;
 
   recognition.onstart = () => {
+    recognitionActive = true;
+
     micBtn.classList.add("active");
+
     listenState.textContent = "ESTOU OUVINDO";
   };
 
   recognition.onend = () => {
+    recognitionActive = false;
+
     micBtn.classList.remove("active");
+
+    // CONTINUAR OUVINDO APÓS CADA RESPOSTA
+    if (voiceMode && !busy && !speaking) {
+      startListening();
+    }
   };
 
   recognition.onerror = event => {
-    listenState.textContent =
-      event.error === "not-allowed"
-        ? "PERMITA O MICROFONE"
-        : "FALHA NO MICROFONE";
-  };
+    recognitionActive = false;
 
-  // MICROFONE ATIVA A RESPOSTA FALADA
-  recognition.onresult = event => {
-    sendMessage(
-      event.results[0][0].transcript,
-      pendingImage,
-      true
-    );
-  };
+    micBtn.classList.remove("active");
 
-  micBtn.addEventListener("click", () => {
-    try {
-      recognition.start();
-    } catch (_) {
-      recognition.stop();
+    console.error("ERRO DO MICROFONE:", event.error);
+
+    if (
+      event.error === "not-allowed" ||
+      event.error === "service-not-allowed"
+    ) {
+      voiceMode = false;
+      listenState.textContent = "PERMITA O MICROFONE";
+      return;
     }
+
+    if (voiceMode) {
+      listenState.textContent = "RECONECTANDO MICROFONE";
+    } else {
+      listenState.textContent = "FALHA NO MICROFONE";
+    }
+  };
+
+  recognition.onresult = event => {
+    const transcript =
+      event.results[0][0].transcript.trim();
+
+    if (transcript) {
+      sendMessage(
+        transcript,
+        pendingImage,
+        true
+      );
+    }
+  };
+
+  // UM TOQUE INICIA, OUTRO TOQUE ENCERRA
+  micBtn.addEventListener("click", async () => {
+    if (voiceMode) {
+      stopListening();
+      return;
+    }
+
+    voiceMode = true;
+
+    listenState.textContent = "ATIVANDO CONVERSA POR VOZ";
+
+    // PREPARAR ÁUDIO NO TOQUE DO USUÁRIO
+    await unlockAudio();
+
+    startListening();
   });
 
 } else if (micBtn) {
