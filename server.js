@@ -20,7 +20,63 @@ app.get("/api/status", (_req, res) => {
   });
 });
 
-// GERAÇÃO DA VOZ MASCULINA
+// IDENTIFICAR O ESTILO DA FALA
+function detectSpeechStyle(text) {
+  const value = String(text || "").trim();
+  const lower = value.toLowerCase();
+
+  const exclamations = (value.match(/!/g) || []).length;
+  const questions = (value.match(/\?/g) || []).length;
+  const sentences = (value.match(/[.!?]+/g) || []).length;
+
+  const firmWords =
+    /\b(não,|olha,|escuta,|calma,|vamos lá|presta atenção|vou te falar|sinceramente|na verdade)\b/i.test(lower);
+
+  const excitedWords =
+    /\b(ótimo|excelente|sensacional|incrível|adorei|boa!|conseguimos|maravilha)\b/i.test(lower);
+
+  if (excitedWords || exclamations >= 2) {
+    return {
+      rate: "+3%",
+      pitch: "+3%"
+    };
+  }
+
+  if (firmWords) {
+    return {
+      rate: "-1%",
+      pitch: "-4%"
+    };
+  }
+
+  if (questions > 0 && exclamations === 0) {
+    return {
+      rate: "+0%",
+      pitch: "+2%"
+    };
+  }
+
+  if (value.length > 350 || sentences >= 5) {
+    return {
+      rate: "-7%",
+      pitch: "-2%"
+    };
+  }
+
+  if (exclamations === 1) {
+    return {
+      rate: "+2%",
+      pitch: "+2%"
+    };
+  }
+
+  return {
+    rate: "-3%",
+    pitch: "-2%"
+  };
+}
+
+// GERAÇÃO DA VOZ MASCULINA COM EXPRESSIVIDADE
 async function generateVoice(text, res) {
   let audioPath = null;
 
@@ -30,12 +86,14 @@ async function generateVoice(text, res) {
       `varjao-${crypto.randomUUID()}.mp3`
     );
 
+    const style = detectSpeechStyle(text);
+
     const tts = new EdgeTTS({
       voice: "pt-BR-AntonioNeural",
       lang: "pt-BR",
       outputFormat: "audio-24khz-96kbitrate-mono-mp3",
-      rate: "-5%",
-      pitch: "-2%",
+      rate: style.rate,
+      pitch: style.pitch,
       volume: "+0%",
       timeout: 60000
     });
