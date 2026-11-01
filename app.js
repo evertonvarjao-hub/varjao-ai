@@ -113,8 +113,49 @@ async function sendMessage(text) {
 
 form.addEventListener("submit", e => {
   e.preventDefault();
-  sendMessage(promptInput.value);
+
+  alert("Botão enviar acionado!");
+
+  const mensagem = promptInput.value.trim();
+
+  if (!mensagem) {
+    alert("A mensagem está vazia!");
+    return;
+  }
+
+  addMessage("user", mensagem);
+  promptInput.value = "";
+
+  sendMessageJaExibida(mensagem);
 });
+
+async function sendMessageJaExibida(text) {
+  if (busy) return;
+
+  busy = true;
+  history.push({ role: "user", content: text });
+
+  try {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: history })
+    });
+
+    const data = await r.json();
+
+    if (!r.ok) throw new Error(data.error || "Erro na conexão.");
+
+    history.push({ role: "assistant", content: data.answer });
+    addMessage("assistant", data.answer);
+    speak(data.answer);
+
+  } catch (err) {
+    addMessage("assistant", "Aviso: " + err.message);
+  } finally {
+    busy = false;
+  }
+}
 
 document.getElementById("clearBtn").addEventListener("click", () => {
   history = [];
