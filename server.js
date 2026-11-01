@@ -1,5 +1,4 @@
 
-
 const express = require("express");
 const { EdgeTTS } = require("node-edge-tts");
 const fs = require("fs/promises");
@@ -20,25 +19,11 @@ app.get("/api/status", (_req, res) => {
   });
 });
 
-// VOZ NEURAL MASCULINA DO VARJÃO
-app.post("/api/tts", async (req, res) => {
+// FUNÇÃO DE GERAÇÃO DA VOZ MASCULINA
+async function generateVoice(text, res) {
   let audioPath = null;
 
   try {
-    const text = String(req.body.text || "").trim();
-
-    if (!text) {
-      return res.status(400).json({
-        error: "Nenhum texto recebido para falar."
-      });
-    }
-
-    if (text.length > 2500) {
-      return res.status(400).json({
-        error: "Texto muito longo para reprodução."
-      });
-    }
-
     audioPath = path.join(
       os.tmpdir(),
       `varjao-${crypto.randomUUID()}.mp3`
@@ -54,17 +39,14 @@ app.post("/api/tts", async (req, res) => {
       timeout: 60000
     });
 
-    // GERAR ARQUIVO DE ÁUDIO
     await tts.ttsPromise(text, audioPath);
 
-    // LER O MP3 GERADO
     const audio = await fs.readFile(audioPath);
 
     if (!audio.length) {
       throw new Error("O arquivo de áudio está vazio.");
     }
 
-    // ENVIAR ÁUDIO PARA O APLICATIVO
     res.set({
       "Content-Type": "audio/mpeg",
       "Content-Length": audio.length,
@@ -87,6 +69,33 @@ app.post("/api/tts", async (req, res) => {
       await fs.unlink(audioPath).catch(() => {});
     }
   }
+}
+
+// VOZ NEURAL DO VARJÃO
+app.post("/api/tts", async (req, res) => {
+  const text = String(req.body?.text || "").trim();
+
+  if (!text) {
+    return res.status(400).json({
+      error: "Nenhum texto recebido para falar."
+    });
+  }
+
+  if (text.length > 2500) {
+    return res.status(400).json({
+      error: "Texto muito longo para reprodução."
+    });
+  }
+
+  await generateVoice(text, res);
+});
+
+// TESTE DIRETO DA VOZ
+app.get("/api/tts-test", async (_req, res) => {
+  await generateVoice(
+    "Olá! Eu sou o Varjão. Minha voz está funcionando.",
+    res
+  );
 });
 
 // CONVERSA COM A INTELIGÊNCIA ARTIFICIAL
@@ -152,7 +161,8 @@ app.post("/api/chat", async (req, res) => {
         contents[lastUserIndex].content = [
           {
             type: "text",
-            text: previousText || "Analise esta imagem e me explique o que você observa."
+            text: previousText ||
+              "Analise esta imagem e me explique o que você observa."
           },
           imageMessage
         ];
@@ -208,7 +218,8 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const answer =
-      data.choices?.[0]?.message?.content || "Não consegui responder.";
+      data.choices?.[0]?.message?.content ||
+      "Não consegui responder.";
 
     res.json({ answer });
 
