@@ -45,7 +45,7 @@ app.post("/api/tts", async (req, res) => {
     );
 
     const tts = new EdgeTTS({
-      voice: "pt-BR-AntonioNeural",
+      voice: "pt-BR-FranciscaNeural",
       lang: "pt-BR",
       outputFormat: "audio-24khz-96kbitrate-mono-mp3",
       rate: "-5%",
