@@ -1,3 +1,4 @@
+
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -7,24 +8,26 @@ const statusText = document.getElementById("statusText");
 const voiceSelect = document.getElementById("voiceSelect");
 
 let history = [];
-let recognition = null;
 let busy = false;
 
 function addMessage(role, content) {
   const el = document.createElement("div");
   el.className = `message ${role}`;
+
   const who = document.createElement("span");
   who.className = "speaker";
   who.textContent = role === "user" ? "VOCÊ" : "VARJÃO";
+
   const p = document.createElement("p");
   p.textContent = content;
+
   el.append(who, p);
   messagesEl.appendChild(el);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function speak(text) {
-  if (!("speechSynthesis" in window) || voiceSelect?.value === "off") return;
+  if (!window.speechSynthesis || voiceSelect?.value === "off") return;
 
   const synth = window.speechSynthesis;
   synth.cancel();
@@ -44,17 +47,19 @@ function speak(text) {
   );
 
   if (maleVoice) utterance.voice = maleVoice;
-  else if (ptVoices[0]) utterance.voice = ptVoices[0];
+  else if (ptVoices.length) utterance.voice = ptVoices[0];
 
   synth.speak(utterance);
 }
 
 async function sendMessage(text) {
   const clean = String(text || "").trim();
+
   if (!clean || busy) return;
 
   busy = true;
   promptInput.value = "";
+
   addMessage("user", clean);
   history.push({ role: "user", content: clean });
 
@@ -64,7 +69,9 @@ async function sendMessage(text) {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ messages: history })
     });
 
@@ -76,7 +83,11 @@ async function sendMessage(text) {
 
     const answer = data.answer || "Não consegui responder.";
 
-    history.push({ role: "assistant", content: answer });
+    history.push({
+      role: "assistant",
+      content: answer
+    });
+
     addMessage("assistant", answer);
     speak(answer);
 
@@ -114,24 +125,20 @@ const SpeechRecognition =
   window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (SpeechRecognition && micBtn) {
-  recognition = new SpeechRecognition();
+  const recognition = new SpeechRecognition();
+
   recognition.lang = "pt-BR";
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
     micBtn.classList.add("active");
-    micBtn.innerHTML = "<span>●</span> OUVINDO";
     listenState.textContent = "ESTOU OUVINDO";
   };
 
   recognition.onend = () => {
     micBtn.classList.remove("active");
-    micBtn.innerHTML = "<span>🎙</span> FALAR";
-
-    if (listenState.textContent === "ESTOU OUVINDO") {
-      listenState.textContent = "AGUARDANDO COMANDO";
-    }
+    listenState.textContent = "AGUARDANDO COMANDO";
   };
 
   recognition.onerror = event => {
