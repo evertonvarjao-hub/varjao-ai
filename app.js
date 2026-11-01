@@ -21,6 +21,13 @@ let currentSource = null;
 let currentAudio = null;
 let currentAudioUrl = null;
 
+// CAPTURA DA VOZ ORIGINAL
+let microphoneStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let pendingTranscript = "";
+let recordingMimeType = "";
+
 // EXIBIR MENSAGENS
 function addMessage(role, content) {
   const el = document.createElement("div");
@@ -97,6 +104,161 @@ async function unlockAudio() {
   }
 }
 
+// INICIAR CAPTURA DO ÁUDIO ORIGINAL
+async function startVoiceRecording() {
+  if (
+    mediaRecorder &&
+    mediaRecorder.state === "recording"
+  ) {
+    return true;
+  }
+
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Captura de áudio indisponível.");
+    }
+
+    microphoneStream =
+      await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: false,
+          autoGainControl: false
+        }
+      });
+
+    recordedChunks = [];
+
+    const mimeOptions = [
+      "audio/mp4",
+      "audio/webm;codecs=opus",
+      "audio/webm"
+    ];
+
+    recordingMimeType = "";
+
+    if (window.MediaRecorder?.isTypeSupported) {
+      recordingMimeType = mimeOptions.find(type =>
+        MediaRecorder.isTypeSupported(type)
+      ) || "";
+    }
+
+    if (!window.MediaRecorder) {
+      throw new Error("Gravação de áudio não suportada.");
+    }
+
+    mediaRecorder = recordingMimeType
+      ? new MediaRecorder(microphoneStream, {
+          mimeType: recordingMimeType
+        })
+      : new MediaRecorder(microphoneStream);
+
+    recordingMimeType = mediaRecorder.mimeType ||
+      recordingMimeType ||
+      "audio/webm";
+
+    mediaRecorder.ondataavailable = event => {
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.start();
+
+    return true;
+
+  } catch (error) {
+    console.error("CAPTURA DE VOZ:", error);
+
+    stopMicrophoneTracks();
+
+    listenState.textContent =
+      "OUVINDO SEM ANÁLISE DE ENTONAÇÃO";
+
+    return false;
+  }
+}
+
+// ENCERRAR MICROFONE
+function stopMicrophoneTracks() {
+  if (microphoneStream) {
+    microphoneStream.getTracks().forEach(track => {
+      track.stop();
+    });
+
+    microphoneStream = null;
+  }
+}
+
+// FINALIZAR GRAVAÇÃO E PREPARAR ÁUDIO PARA ENVIO
+async function stopVoiceRecording() {
+  if (
+    !mediaRecorder ||
+    mediaRecorder.state === "inactive"
+  ) {
+    stopMicrophoneTracks();
+    return null;
+  }
+
+  const recorder = mediaRecorder;
+
+  const audioBlob = await new Promise(resolve => {
+    recorder.addEventListener("stop", () => {
+      const blob = new Blob(recordedChunks, {
+        type: recordingMimeType || recorder.mimeType
+      });
+
+      resolve(blob);
+    }, { once: true });
+
+    try {
+      recorder.stop();
+    } catch (error) {
+      console.error("Erro ao finalizar gravação:", error);
+      resolve(null);
+    }
+  });
+
+  mediaRecorder = null;
+  stopMicrophoneTracks();
+
+  if (!audioBlob || !audioBlob.size) {
+    recordedChunks = [];
+    return null;
+  }
+
+  // EVITAR ENVIAR GRAVAÇÕES EXCESSIVAMENTE GRANDES
+  if (audioBlob.size > 5 * 1024 * 1024) {
+    console.warn("Áudio muito grande para envio.");
+    recordedChunks = [];
+    return null;
+  }
+
+  const audioData = await new Promise(resolve => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const result = String(reader.result || "");
+      const base64 = result.includes(",")
+        ? result.split(",")[1]
+        : "";
+
+      resolve(base64 ? {
+        data: base64,
+        mimeType: audioBlob.type || recordingMimeType
+      } : null);
+    };
+
+    reader.onerror = () => resolve(null);
+
+    reader.readAsDataURL(audioBlob);
+  });
+
+  recordedChunks = [];
+
+  return audioData;
+}
+
 // PARAR ÁUDIO
 function stopAudio() {
   if (currentSource) {
@@ -125,35 +287,17 @@ function stopAudio() {
 function cleanSpeechText(text) {
   let result = String(text || "");
 
-  // REMOVER BLOCOS DE CÓDIGO
   result = result.replace(/```[\s\S]*?```/g, " ");
-
-  // REMOVER TÍTULOS
   result = result.replace(/^#{1,6}\s+.*$/gm, " ");
-
-  // REMOVER MARCADORES DE LISTAS
   result = result.replace(/^\s*[-*•]\s+/gm, ". ");
-
-  // REMOVER NUMERAÇÃO DE LISTAS
   result = result.replace(/^\s*\d+[.)]\s+/gm, ". ");
-
-  // REMOVER CITAÇÕES E LINHAS DECORATIVAS
   result = result.replace(/^\s*>\s?/gm, "");
   result = result.replace(/^\s*[-_]{3,}\s*$/gm, " ");
-
-  // MANTER SOMENTE O TEXTO DOS LINKS
   result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-
-  // REMOVER ENDEREÇOS DA INTERNET
   result = result.replace(/https?:\/\/\S+/gi, "");
-
-  // REMOVER CÓDIGOS DE EMOJIS, COMO :smile:
   result = result.replace(/:[a-z0-9_+-]{2,}:/gi, " ");
-
-  // REMOVER EMOJIS DE TECLADO, COMO 1️⃣
   result = result.replace(/(?:[#*0-9]\uFE0F?\u20E3)/g, " ");
 
-  // REMOVER EMOJIS, BANDEIRAS E SÍMBOLOS VISUAIS
   try {
     result = result.replace(
       /[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu,
@@ -163,18 +307,11 @@ function cleanSpeechText(text) {
     console.log("Limpeza avançada de emojis indisponível.");
   }
 
-  // REMOVER SÍMBOLOS DE FORMATAÇÃO
   result = result.replace(/[*_~`#]/g, "");
-
-  // TRANSFORMAR BARRAS DE TABELAS EM PAUSAS
   result = result.replace(/\|/g, ", ");
-
-  // ORGANIZAR ESPAÇOS E PONTUAÇÃO
   result = result.replace(/\s+/g, " ");
   result = result.replace(/\s+([,.!?;:])/g, "$1");
   result = result.replace(/([,.!?;:])([^\s])/g, "$1 $2");
-
-  // EVITAR PONTUAÇÃO REPETIDA
   result = result.replace(/([,.!?])\1+/g, "$1");
 
   return result.trim();
@@ -215,7 +352,6 @@ async function speak(text) {
       throw new Error("O áudio recebido está vazio.");
     }
 
-    // REPRODUÇÃO PELO AUDIOCONTEXT
     if (audioContext) {
       if (audioContext.state === "suspended") {
         await audioContext.resume();
@@ -249,7 +385,6 @@ async function speak(text) {
       });
 
     } else {
-      // ALTERNATIVA PARA NAVEGADORES SEM AUDIOCONTEXT
       const blob = new Blob(
         [audioData],
         { type: "audio/mpeg" }
@@ -275,7 +410,6 @@ async function speak(text) {
 
   } catch (error) {
     console.error("ERRO NA REPRODUÇÃO:", error);
-
     listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
 
   } finally {
@@ -362,7 +496,8 @@ function prepareImage(file) {
 async function sendMessage(
   text,
   imageData = null,
-  speakResponse = false
+  speakResponse = false,
+  voiceAudio = null
 ) {
   const clean = String(text || "").trim();
 
@@ -387,7 +522,9 @@ async function sendMessage(
 
   listenState.textContent = imageData
     ? "ANALISANDO IMAGEM"
-    : "PROCESSANDO";
+    : voiceAudio
+      ? "ANALISANDO SUA VOZ"
+      : "PROCESSANDO";
 
   statusText.textContent = "CONECTANDO";
 
@@ -399,7 +536,10 @@ async function sendMessage(
       },
       body: JSON.stringify({
         messages: history,
-        image: imageData || undefined
+        image: imageData || undefined,
+
+        // ÁUDIO ORIGINAL PARA ANÁLISE NO SERVIDOR
+        voiceAudio: voiceAudio || undefined
       })
     });
 
@@ -420,7 +560,6 @@ async function sendMessage(
 
     addMessage("assistant", answer);
 
-    // FALAR QUANDO A PERGUNTA VEIO DO MICROFONE
     if (speakResponse && voiceMode) {
       await speak(answer);
     }
@@ -442,7 +581,6 @@ async function sendMessage(
   } finally {
     busy = false;
 
-    // VOLTAR A OUVIR AUTOMATICAMENTE
     if (voiceMode) {
       listenState.textContent = "VOU OUVIR VOCÊ NOVAMENTE";
       startListening();
@@ -460,13 +598,22 @@ function startListening() {
 
   clearTimeout(restartTimer);
 
-  restartTimer = setTimeout(() => {
+  restartTimer = setTimeout(async () => {
     if (!voiceMode || busy || speaking || recognitionActive) {
       return;
     }
 
     try {
+      // COMEÇAR A GRAVAR A VOZ ANTES DO RECONHECIMENTO
+      await startVoiceRecording();
+
+      if (!voiceMode || busy || recognitionActive) {
+        await stopVoiceRecording();
+        return;
+      }
+
       recognition.start();
+
     } catch (error) {
       console.log("Aguardando microfone:", error.message);
     }
@@ -485,6 +632,13 @@ function stopListening() {
     } catch (_) {}
   }
 
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    try {
+      mediaRecorder.stop();
+    } catch (_) {}
+  }
+
+  stopMicrophoneTracks();
   stopAudio();
 
   micBtn?.classList.remove("active");
@@ -577,12 +731,27 @@ if (SpeechRecognition && micBtn) {
     listenState.textContent = "ESTOU OUVINDO";
   };
 
-  recognition.onend = () => {
+  recognition.onend = async () => {
     recognitionActive = false;
 
     micBtn.classList.remove("active");
 
-    // CONTINUAR OUVINDO APÓS CADA RESPOSTA
+    // FINALIZAR A GRAVAÇÃO DA FALA
+    const transcript = pendingTranscript;
+    pendingTranscript = "";
+
+    const voiceAudio = await stopVoiceRecording();
+
+    if (transcript && voiceMode) {
+      sendMessage(
+        transcript,
+        pendingImage,
+        true,
+        voiceAudio
+      );
+      return;
+    }
+
     if (voiceMode && !busy && !speaking) {
       startListening();
     }
@@ -600,6 +769,7 @@ if (SpeechRecognition && micBtn) {
       event.error === "service-not-allowed"
     ) {
       voiceMode = false;
+      stopMicrophoneTracks();
       listenState.textContent = "PERMITA O MICROFONE";
       return;
     }
@@ -616,11 +786,7 @@ if (SpeechRecognition && micBtn) {
       event.results[0][0].transcript.trim();
 
     if (transcript) {
-      sendMessage(
-        transcript,
-        pendingImage,
-        true
-      );
+      pendingTranscript = transcript;
     }
   };
 
@@ -635,7 +801,6 @@ if (SpeechRecognition && micBtn) {
 
     listenState.textContent = "ATIVANDO CONVERSA POR VOZ";
 
-    // PREPARAR ÁUDIO NO TOQUE DO USUÁRIO
     await unlockAudio();
 
     startListening();
