@@ -1,4 +1,5 @@
 
+
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -121,9 +122,53 @@ function stopAudio() {
   speaking = false;
 }
 
+// LIMPAR TEXTO PARA FALA NATURAL
+function cleanSpeechText(text) {
+  let result = String(text || "");
+
+  // Remover blocos de código
+  result = result.replace(/```[\s\S]*?```/g, " ");
+
+  // Remover títulos
+  result = result.replace(/^#{1,6}\s+.*$/gm, " ");
+
+  // Remover marcadores de listas
+  result = result.replace(/^\s*[-*•]\s+/gm, ". ");
+
+  // Remover numeração de listas
+  result = result.replace(/^\s*\d+[.)]\s+/gm, ". ");
+
+  // Remover citações e linhas decorativas
+  result = result.replace(/^\s*>\s?/gm, "");
+  result = result.replace(/^\s*[-_]{3,}\s*$/gm, " ");
+
+  // Manter somente o texto dos links
+  result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+  // Remover endereços da internet
+  result = result.replace(/https?:\/\/\S+/gi, "");
+
+  // Remover símbolos de formatação
+  result = result.replace(/[*_~`#]/g, "");
+
+  // Transformar barras de tabelas em pausas
+  result = result.replace(/\|/g, ", ");
+
+  // Organizar espaços e pontuação
+  result = result.replace(/\s+/g, " ");
+  result = result.replace(/\s+([,.!?;:])/g, "$1");
+  result = result.replace(/([,.!?;:])([^\s])/g, "$1 $2");
+
+  return result.trim();
+}
+
 // VOZ NEURAL MASCULINA
 async function speak(text) {
   stopAudio();
+
+  const speechText = cleanSpeechText(text);
+
+  if (!speechText) return;
 
   speaking = true;
   listenState.textContent = "PREPARANDO VOZ NATURAL";
@@ -135,7 +180,7 @@ async function speak(text) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        text: String(text || "").slice(0, 2500)
+        text: speechText.slice(0, 2500)
       })
     });
 
