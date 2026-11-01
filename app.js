@@ -14,13 +14,13 @@ let voiceMode = false;
 let recognitionActive = false;
 let speaking = false;
 let restartTimer = null;
+let interruptedSpeech = false;
 
 let audioContext = null;
 let currentSource = null;
 let currentAudio = null;
 let currentAudioUrl = null;
 
-// CAPTURA DA VOZ ORIGINAL
 let microphoneStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -83,7 +83,7 @@ function addImageMessage(imageData, content) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// PREPARAR ÁUDIO DO IPHONE
+// PREPARAR ÁUDIO
 async function unlockAudio() {
   try {
     const AudioContextClass =
@@ -103,7 +103,7 @@ async function unlockAudio() {
   }
 }
 
-// INICIAR CAPTURA DO ÁUDIO ORIGINAL
+// INICIAR GRAVAÇÃO
 async function startVoiceRecording() {
   if (
     mediaRecorder &&
@@ -121,8 +121,8 @@ async function startVoiceRecording() {
       await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: false,
-          autoGainControl: false
+          noiseSuppression: true,
+          autoGainControl: true
         }
       });
 
@@ -143,7 +143,7 @@ async function startVoiceRecording() {
     }
 
     if (!window.MediaRecorder) {
-      throw new Error("Gravação de áudio não suportada.");
+      throw new Error("Gravação não suportada.");
     }
 
     mediaRecorder = recordingMimeType
@@ -227,9 +227,8 @@ async function stopVoiceRecording() {
     return null;
   }
 
-  // EVITAR GRAVAÇÕES EXCESSIVAMENTE GRANDES
   if (audioBlob.size > 5 * 1024 * 1024) {
-    console.warn("Áudio muito grande para análise.");
+    console.warn("Áudio muito grande.");
     recordedChunks = [];
     return null;
   }
@@ -259,7 +258,7 @@ async function stopVoiceRecording() {
   return audioData;
 }
 
-// ANALISAR CARACTERÍSTICAS ACÚSTICAS DA VOZ NO IPHONE
+// ANALISAR VOZ
 async function analyzeVoiceAudio(voiceAudio) {
   if (!voiceAudio?.data) {
     return null;
@@ -269,9 +268,7 @@ async function analyzeVoiceAudio(voiceAudio) {
     const AudioContextClass =
       window.AudioContext || window.webkitAudioContext;
 
-    if (!AudioContextClass) {
-      return null;
-    }
+    if (!AudioContextClass) return null;
 
     if (!audioContext) {
       audioContext = new AudioContextClass();
@@ -281,7 +278,6 @@ async function analyzeVoiceAudio(voiceAudio) {
       await audioContext.resume();
     }
 
-    // CONVERTER BASE64 EM ÁUDIO
     const binary = atob(voiceAudio.data);
     const bytes = new Uint8Array(binary.length);
 
@@ -300,7 +296,6 @@ async function analyzeVoiceAudio(voiceAudio) {
     const channel = audioBuffer.getChannelData(0);
     const sampleRate = audioBuffer.sampleRate;
 
-    // ANALISAR O ÁUDIO EM PEQUENOS INTERVALOS
     const frameSize = Math.max(
       1,
       Math.floor(sampleRate * 0.02)
@@ -324,21 +319,13 @@ async function analyzeVoiceAudio(voiceAudio) {
         sum += channel[i] * channel[i];
       }
 
-      const rms = Math.sqrt(sum / (end - start));
-
-      levels.push(rms);
+      levels.push(Math.sqrt(sum / (end - start)));
     }
 
-    if (!levels.length) {
-      return null;
-    }
+    if (!levels.length) return null;
 
     const maximum = Math.max(...levels);
-    const average =
-      levels.reduce((sum, value) => sum + value, 0) /
-      levels.length;
 
-    // IGNORAR PEQUENOS RUÍDOS DE FUNDO
     const threshold = Math.max(
       0.008,
       maximum * 0.12
@@ -348,12 +335,8 @@ async function analyzeVoiceAudio(voiceAudio) {
       value => value > threshold
     );
 
-    if (!activeLevels.length) {
-      return null;
-    }
+    if (!activeLevels.length) return null;
 
-    // 1. INTENSIDADE RELATIVA
-    // É uma estimativa dependente do microfone e da distância.
     const activeAverage =
       activeLevels.reduce((sum, value) => sum + value, 0) /
       activeLevels.length;
@@ -363,13 +346,9 @@ async function analyzeVoiceAudio(voiceAudio) {
       Math.min(100, Math.round(activeAverage * 350))
     );
 
-    // 2. VARIAÇÃO DA INTENSIDADE
-    // Mede mudanças no volume ao longo da fala.
-    const activeMean = activeAverage;
-
     const variance =
       activeLevels.reduce((sum, value) => {
-        return sum + Math.pow(value - activeMean, 2);
+        return sum + Math.pow(value - activeAverage, 2);
       }, 0) / activeLevels.length;
 
     const deviation = Math.sqrt(variance);
@@ -378,13 +357,10 @@ async function analyzeVoiceAudio(voiceAudio) {
       0,
       Math.min(
         100,
-        Math.round((deviation / Math.max(activeMean, 0.001)) * 65)
+        Math.round((deviation / Math.max(activeAverage, 0.001)) * 65)
       )
     );
 
-    // 3. RITMO APROXIMADO
-    // Conta mudanças entre silêncio e atividade sonora.
-    // Não representa palavras por minuto.
     let transitions = 0;
     let wasActive = false;
 
@@ -418,19 +394,16 @@ async function analyzeVoiceAudio(voiceAudio) {
     };
 
   } catch (error) {
-    console.warn(
-      "Não foi possível analisar a entonação:",
-      error
-    );
-
+    console.warn("Erro na análise da voz:", error);
     return null;
   }
 }
 
-// PARAR ÁUDIO
+// PARAR ÁUDIO IMEDIATAMENTE
 function stopAudio() {
   if (currentSource) {
     try {
+      currentSource.onended = null;
       currentSource.stop();
     } catch (_) {}
 
@@ -451,7 +424,7 @@ function stopAudio() {
   speaking = false;
 }
 
-// LIMPAR TEXTO PARA FALA NATURAL
+// LIMPAR TEXTO PARA FALA
 function cleanSpeechText(text) {
   let result = String(text || "");
 
@@ -464,16 +437,13 @@ function cleanSpeechText(text) {
   result = result.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   result = result.replace(/https?:\/\/\S+/gi, "");
   result = result.replace(/:[a-z0-9_+-]{2,}:/gi, " ");
-  result = result.replace(/(?:[#*0-9]\uFE0F?\u20E3)/g, " ");
 
   try {
     result = result.replace(
       /[\p{Extended_Pictographic}\uFE0E\uFE0F\u200D\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu,
       " "
     );
-  } catch (error) {
-    console.log("Limpeza avançada de emojis indisponível.");
-  }
+  } catch (_) {}
 
   result = result.replace(/[*_~`#]/g, "");
   result = result.replace(/\|/g, ", ");
@@ -485,7 +455,7 @@ function cleanSpeechText(text) {
   return result.trim();
 }
 
-// VOZ NEURAL MASCULINA
+// VOZ NEURAL
 async function speak(text) {
   stopAudio();
 
@@ -494,7 +464,9 @@ async function speak(text) {
   if (!speechText) return;
 
   speaking = true;
-  listenState.textContent = "PREPARANDO VOZ NATURAL";
+  interruptedSpeech = false;
+
+  listenState.textContent = "VARJÃO FALANDO";
 
   try {
     const response = await fetch("/api/tts", {
@@ -548,7 +520,14 @@ async function speak(text) {
 
         try {
           source.start(0);
+
           listenState.textContent = "VARJÃO FALANDO";
+
+          // AQUI COMEÇA A ESCUTAR ENQUANTO FALA
+          if (voiceMode) {
+            startListening(true);
+          }
+
         } catch (error) {
           reject(error);
         }
@@ -574,6 +553,11 @@ async function speak(text) {
 
         currentAudio.play().then(() => {
           listenState.textContent = "VARJÃO FALANDO";
+
+          if (voiceMode) {
+            startListening(true);
+          }
+
         }).catch(reject);
       });
     }
@@ -699,7 +683,6 @@ async function sendMessage(
   statusText.textContent = "CONECTANDO";
 
   try {
-    // ANALISAR A VOZ LOCALMENTE NO IPHONE
     let voiceTone = null;
 
     if (voiceAudio) {
@@ -714,9 +697,6 @@ async function sendMessage(
       body: JSON.stringify({
         messages: history,
         image: imageData || undefined,
-
-        // ENVIAR SOMENTE OS INDICADORES NUMÉRICOS
-        // A GRAVAÇÃO ORIGINAL NÃO É ENVIADA AO SERVIDOR
         voiceTone: voiceTone || undefined
       })
     });
@@ -738,10 +718,6 @@ async function sendMessage(
 
     addMessage("assistant", answer);
 
-    if (speakResponse && voiceMode) {
-      await speak(answer);
-    }
-
     if (imageData) {
       pendingImage = null;
       imageInput.value = "";
@@ -749,6 +725,13 @@ async function sendMessage(
     }
 
     statusText.textContent = "SISTEMA PRONTO";
+
+    // LIBERAR O ENVIO PARA PERMITIR INTERRUPÇÃO
+    busy = false;
+
+    if (speakResponse && voiceMode) {
+      await speak(answer);
+    }
 
   } catch (error) {
     addMessage("assistant", "Aviso: " + error.message);
@@ -759,16 +742,22 @@ async function sendMessage(
   } finally {
     busy = false;
 
-    if (voiceMode) {
-      listenState.textContent = "VOU OUVIR VOCÊ NOVAMENTE";
+    if (voiceMode && !recognitionActive) {
+      listenState.textContent = "PREPARANDO PARA OUVIR";
       startListening();
     }
   }
 }
 
 // INICIAR ESCUTA
-function startListening() {
-  if (!voiceMode || busy || speaking || recognitionActive) {
+// force = true permite ouvir mesmo enquanto o VARJÃO fala.
+function startListening(force = false) {
+  if (
+    !voiceMode ||
+    busy ||
+    recognitionActive ||
+    (!force && speaking)
+  ) {
     return;
   }
 
@@ -777,12 +766,16 @@ function startListening() {
   clearTimeout(restartTimer);
 
   restartTimer = setTimeout(async () => {
-    if (!voiceMode || busy || speaking || recognitionActive) {
+    if (
+      !voiceMode ||
+      busy ||
+      recognitionActive ||
+      (!force && speaking)
+    ) {
       return;
     }
 
     try {
-      // COMEÇAR A GRAVAR A VOZ ANTES DO RECONHECIMENTO
       await startVoiceRecording();
 
       if (!voiceMode || busy || recognitionActive) {
@@ -795,10 +788,10 @@ function startListening() {
     } catch (error) {
       console.log("Aguardando microfone:", error.message);
     }
-  }, 500);
+  }, 250);
 }
 
-// ENCERRAR CONVERSA POR VOZ
+// ENCERRAR CONVERSA
 function stopListening() {
   voiceMode = false;
 
@@ -827,6 +820,13 @@ function stopListening() {
 // ENVIO PELO CAMPO DE TEXTO
 form?.addEventListener("submit", event => {
   event.preventDefault();
+
+  // SE O USUÁRIO DIGITAR ENQUANTO O VARJÃO FALA,
+  // A VOZ TAMBÉM É INTERROMPIDA.
+  if (speaking) {
+    interruptedSpeech = true;
+    stopAudio();
+  }
 
   sendMessage(
     promptInput.value,
@@ -897,7 +897,10 @@ if (SpeechRecognition && micBtn) {
   recognition = new SpeechRecognition();
 
   recognition.lang = "pt-BR";
-  recognition.interimResults = false;
+
+  // AGORA RECEBE RESULTADOS PARCIAIS
+  recognition.interimResults = true;
+
   recognition.maxAlternatives = 1;
   recognition.continuous = false;
 
@@ -906,7 +909,9 @@ if (SpeechRecognition && micBtn) {
 
     micBtn.classList.add("active");
 
-    listenState.textContent = "ESTOU OUVINDO";
+    listenState.textContent = speaking
+      ? "PODE ME INTERROMPER"
+      : "ESTOU OUVINDO";
   };
 
   recognition.onend = async () => {
@@ -914,13 +919,13 @@ if (SpeechRecognition && micBtn) {
 
     micBtn.classList.remove("active");
 
-    // FINALIZAR A GRAVAÇÃO DA FALA
     const transcript = pendingTranscript;
     pendingTranscript = "";
 
     const voiceAudio = await stopVoiceRecording();
 
     if (transcript && voiceMode) {
+      // SE HOUVE INTERRUPÇÃO, ENVIA A NOVA FALA
       sendMessage(
         transcript,
         pendingImage,
@@ -931,8 +936,10 @@ if (SpeechRecognition && micBtn) {
       return;
     }
 
-    if (voiceMode && !busy && !speaking) {
-      startListening();
+    if (voiceMode && !busy) {
+      // SE NÃO HOUVE FALA, CONTINUA OUVINDO.
+      // SE A VOZ AINDA ESTIVER TOCANDO, TENTA NOVAMENTE.
+      startListening(speaking);
     }
   };
 
@@ -954,19 +961,50 @@ if (SpeechRecognition && micBtn) {
       return;
     }
 
-    if (voiceMode) {
+    if (voiceMode && !busy) {
       listenState.textContent = "RECONECTANDO MICROFONE";
-    } else {
-      listenState.textContent = "FALHA NO MICROFONE";
+      startListening(speaking);
     }
   };
 
   recognition.onresult = event => {
-    const transcript =
-      event.results[0][0].transcript.trim();
+    let transcript = "";
+    let finalResult = false;
 
-    if (transcript) {
-      pendingTranscript = transcript;
+    for (
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ) {
+      const result = event.results[i];
+
+      if (result[0]?.transcript) {
+        transcript += result[0].transcript + " ";
+      }
+
+      if (result.isFinal) {
+        finalResult = true;
+      }
+    }
+
+    transcript = transcript.trim();
+
+    if (!transcript) return;
+
+    // SE O USUÁRIO COMEÇAR A FALAR DURANTE A RESPOSTA,
+    // INTERROMPE O ÁUDIO IMEDIATAMENTE.
+    if (speaking && transcript.length >= 3) {
+      interruptedSpeech = true;
+
+      stopAudio();
+
+      listenState.textContent = "OUVINDO SUA INTERRUPÇÃO";
+    }
+
+    pendingTranscript = transcript;
+
+    if (finalResult) {
+      listenState.textContent = "ENTENDI. VOU RESPONDER.";
     }
   };
 
