@@ -1,3 +1,4 @@
+
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -6,7 +7,13 @@ const listenState = document.getElementById("listenState");
 const statusText = document.getElementById("statusText");
 const imageInput = document.getElementById("imageInput");
 
+// MEMÓRIA LOCAL
+const HISTORY_KEY = "varjao_history_v2";
+const MEMORY_KEY = "varjao_memory_v1";
+
 let history = [];
+let memories = [];
+
 let busy = false;
 let pendingImage = null;
 
@@ -26,6 +33,68 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let pendingTranscript = "";
 let recordingMimeType = "";
+
+let recognition = null;
+
+// CARREGAR MEMÓRIA E HISTÓRICO
+function loadLocalData() {
+  try {
+    const savedHistory = localStorage.getItem(HISTORY_KEY);
+    const savedMemories = localStorage.getItem(MEMORY_KEY);
+
+    history = savedHistory
+      ? JSON.parse(savedHistory)
+      : [];
+
+    memories = savedMemories
+      ? JSON.parse(savedMemories)
+      : [];
+
+    if (!Array.isArray(history)) history = [];
+    if (!Array.isArray(memories)) memories = [];
+
+    history = history.filter(item =>
+      item &&
+      (item.role === "user" || item.role === "assistant") &&
+      typeof item.content === "string"
+    ).slice(-40);
+
+    memories = memories.filter(item =>
+      typeof item === "string"
+    ).slice(-30);
+
+  } catch (error) {
+    console.error("ERRO AO CARREGAR MEMÓRIA:", error);
+    history = [];
+    memories = [];
+  }
+}
+
+function saveHistory() {
+  try {
+    history = history.slice(-40);
+
+    localStorage.setItem(
+      HISTORY_KEY,
+      JSON.stringify(history)
+    );
+  } catch (error) {
+    console.error("ERRO AO SALVAR HISTÓRICO:", error);
+  }
+}
+
+function saveMemories() {
+  try {
+    memories = memories.slice(-30);
+
+    localStorage.setItem(
+      MEMORY_KEY,
+      JSON.stringify(memories)
+    );
+  } catch (error) {
+    console.error("ERRO AO SALVAR MEMÓRIA:", error);
+  }
+}
 
 // EXIBIR MENSAGENS
 function addMessage(role, content) {
@@ -81,6 +150,23 @@ function addImageMessage(imageData, content) {
   messagesEl.appendChild(el);
 
   messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// RESTAURAR CONVERSA
+function restoreConversation() {
+  messagesEl.replaceChildren();
+
+  if (!history.length) {
+    addMessage(
+      "assistant",
+      "Olá! Sou o VARJÃO. Nossa memória está pronta. Vamos continuar?"
+    );
+    return;
+  }
+
+  history.forEach(item => {
+    addMessage(item.role, item.content);
+  });
 }
 
 // PREPARAR ÁUDIO
@@ -260,9 +346,7 @@ async function stopVoiceRecording() {
 
 // ANALISAR VOZ
 async function analyzeVoiceAudio(voiceAudio) {
-  if (!voiceAudio?.data) {
-    return null;
-  }
+  if (!voiceAudio?.data) return null;
 
   try {
     const AudioContextClass =
@@ -381,17 +465,10 @@ async function analyzeVoiceAudio(voiceAudio) {
 
     const pace = Math.max(
       0,
-      Math.min(
-        100,
-        Math.round(transitionsPerSecond * 18)
-      )
+      Math.min(100, Math.round(transitionsPerSecond * 18))
     );
 
-    return {
-      intensity,
-      variation,
-      pace
-    };
+    return { intensity, variation, pace };
 
   } catch (error) {
     console.warn("Erro na análise da voz:", error);
@@ -399,15 +476,129 @@ async function analyzeVoiceAudio(voiceAudio) {
   }
 }
 
+// MEMÓRIA: SALVAR INFORMAÇÃO
+function rememberInformation(text) {
+  const value = String(text || "").trim();
+
+  if (!value || value.length < 3) {
+    return "Preciso que você me diga qual informação devo guardar.";
+  }
+
+  const exists = memories.some(item =>
+    item.toLowerCase() === value.toLowerCase()
+  );
+
+  if (exists) {
+    return "Essa informação já está guardada na minha memória.";
+  }
+
+  memories.push(value);
+  saveMemories();
+
+  return "Pode deixar! Guardei essa informação na minha memória deste iPhone.";
+}
+
+// MEMÓRIA: CONSULTAR
+function showMemories() {
+  if (!memories.length) {
+    return "Ainda não tenho informações guardadas na memória. Você pode me dizer: VARJÃO, lembre que...";
+  }
+
+  return "Estas são as informações que tenho guardadas:\n\n" +
+    memories.map((item, index) =>
+      `${index + 1}. ${item}`
+    ).join("\n");
+}
+
+// MEMÓRIA: APAGAR
+function forgetInformation(text) {
+  const value = String(text || "").trim().toLowerCase();
+
+  if (!value) {
+    return null;
+  }
+
+  const before = memories.length;
+
+  memories = memories.filter(item =>
+    !item.toLowerCase().includes(value)
+  );
+
+  saveMemories();
+
+  if (memories.length === before) {
+    return "Não encontrei essa informação na memória.";
+  }
+
+  return "Pronto. Apaguei essa informação da minha memória.";
+}
+
+// IDENTIFICAR COMANDOS DE MEMÓRIA
+function handleMemoryCommand(text) {
+  const value = String(text || "").trim();
+  const lower = value.toLowerCase();
+
+  if (
+    /\b(apague|apaga|limpe|limpa|delete|deleta)\b/.test(lower) &&
+    /\b(todas|tudo|minhas|memórias|memoria|memória)\b/.test(lower)
+  ) {
+    memories = [];
+    saveMemories();
+
+    return "Apaguei todas as informações da memória deste iPhone.";
+  }
+
+  if (
+    /\b(o que você lembra|o que voce lembra|minhas memórias|minhas memorias|consultar memória|consultar memoria)\b/.test(lower)
+  ) {
+    return showMemories();
+  }
+
+  const rememberMatch = value.match(
+    /(?:varjão[, ]*)?(?:lembre(?:-se)? que|lembra que|guarde que|memorize que|salve na memória que|salve na memoria que)\s+(.+)/i
+  );
+
+  if (rememberMatch) {
+    return rememberInformation(rememberMatch[1]);
+  }
+
+  const forgetMatch = value.match(
+    /(?:varjão[, ]*)?(?:esqueça que|esquece que|apague da memória que|apague da memoria que)\s+(.+)/i
+  );
+
+  if (forgetMatch) {
+    return forgetInformation(forgetMatch[1]);
+  }
+
+  return null;
+}
+
+// CONTEXTO DE MEMÓRIA PARA A IA
+function buildMemoryContext() {
+  if (!memories.length) return "";
+
+  return `
+INFORMAÇÕES DA MEMÓRIA AUTORIZADAS PELO USUÁRIO:
+${memories.map((item, index) =>
+  `${index + 1}. ${item}`
+).join("\n")}
+
+Use essas informações somente quando forem relevantes.
+Não invente informações adicionais.
+Não diga que lembra de algo que não esteja nesta lista ou no histórico disponível.
+`;
+}
+
 // PARAR ÁUDIO IMEDIATAMENTE
 function stopAudio() {
   if (currentSource) {
-    try {
-      currentSource.onended = null;
-      currentSource.stop();
-    } catch (_) {}
-
+    const source = currentSource;
     currentSource = null;
+
+    try {
+      // Não remover onended: ele precisa liberar a Promise da fala.
+      source.stop();
+    } catch (_) {}
   }
 
   if (currentAudio) {
@@ -523,7 +714,6 @@ async function speak(text) {
 
           listenState.textContent = "VARJÃO FALANDO";
 
-          // AQUI COMEÇA A ESCUTAR ENQUANTO FALA
           if (voiceMode) {
             startListening(true);
           }
@@ -674,6 +864,31 @@ async function sendMessage(
     content: messageText
   });
 
+  saveHistory();
+
+  // COMANDOS LOCAIS DE MEMÓRIA
+  if (!imageData) {
+    const memoryResponse = handleMemoryCommand(messageText);
+
+    if (memoryResponse !== null) {
+      history.push({
+        role: "assistant",
+        content: memoryResponse
+      });
+
+      saveHistory();
+      addMessage("assistant", memoryResponse);
+
+      busy = false;
+
+      if (speakResponse && voiceMode) {
+        await speak(memoryResponse);
+      }
+
+      return;
+    }
+  }
+
   listenState.textContent = imageData
     ? "ANALISANDO IMAGEM"
     : voiceAudio
@@ -689,13 +904,28 @@ async function sendMessage(
       voiceTone = await analyzeVoiceAudio(voiceAudio);
     }
 
+    const memoryContext = buildMemoryContext();
+
+    const messagesForAI = history.slice(-6);
+
+    if (memoryContext && messagesForAI.length) {
+      messagesForAI.splice(
+        Math.max(0, messagesForAI.length - 1),
+        0,
+        {
+          role: "assistant",
+          content: memoryContext
+        }
+      );
+    }
+
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        messages: history,
+        messages: messagesForAI,
         image: imageData || undefined,
         voiceTone: voiceTone || undefined
       })
@@ -716,6 +946,8 @@ async function sendMessage(
       content: answer
     });
 
+    saveHistory();
+
     addMessage("assistant", answer);
 
     if (imageData) {
@@ -726,7 +958,6 @@ async function sendMessage(
 
     statusText.textContent = "SISTEMA PRONTO";
 
-    // LIBERAR O ENVIO PARA PERMITIR INTERRUPÇÃO
     busy = false;
 
     if (speakResponse && voiceMode) {
@@ -735,6 +966,13 @@ async function sendMessage(
 
   } catch (error) {
     addMessage("assistant", "Aviso: " + error.message);
+
+    history.push({
+      role: "assistant",
+      content: "Aviso: " + error.message
+    });
+
+    saveHistory();
 
     listenState.textContent = "VERIFIQUE A CONEXÃO";
     statusText.textContent = "ATENÇÃO";
@@ -750,7 +988,6 @@ async function sendMessage(
 }
 
 // INICIAR ESCUTA
-// force = true permite ouvir mesmo enquanto o VARJÃO fala.
 function startListening(force = false) {
   if (
     !voiceMode ||
@@ -821,8 +1058,6 @@ function stopListening() {
 form?.addEventListener("submit", event => {
   event.preventDefault();
 
-  // SE O USUÁRIO DIGITAR ENQUANTO O VARJÃO FALA,
-  // A VOZ TAMBÉM É INTERROMPIDA.
   if (speaking) {
     interruptedSpeech = true;
     stopAudio();
@@ -868,6 +1103,8 @@ document.getElementById("clearBtn")?.addEventListener("click", () => {
   history = [];
   pendingImage = null;
 
+  saveHistory();
+
   if (imageInput) {
     imageInput.value = "";
   }
@@ -880,7 +1117,7 @@ document.getElementById("clearBtn")?.addEventListener("click", () => {
 
   addMessage(
     "assistant",
-    "Conversa limpa. Estou pronto para começar novamente."
+    "Conversa limpa. Minhas memórias continuam guardadas. Estou pronto para começar novamente."
   );
 
   listenState.textContent = "AGUARDANDO COMANDO";
@@ -891,16 +1128,11 @@ const SpeechRecognition =
   window.SpeechRecognition ||
   window.webkitSpeechRecognition;
 
-let recognition = null;
-
 if (SpeechRecognition && micBtn) {
   recognition = new SpeechRecognition();
 
   recognition.lang = "pt-BR";
-
-  // AGORA RECEBE RESULTADOS PARCIAIS
   recognition.interimResults = true;
-
   recognition.maxAlternatives = 1;
   recognition.continuous = false;
 
@@ -925,7 +1157,6 @@ if (SpeechRecognition && micBtn) {
     const voiceAudio = await stopVoiceRecording();
 
     if (transcript && voiceMode) {
-      // SE HOUVE INTERRUPÇÃO, ENVIA A NOVA FALA
       sendMessage(
         transcript,
         pendingImage,
@@ -937,8 +1168,6 @@ if (SpeechRecognition && micBtn) {
     }
 
     if (voiceMode && !busy) {
-      // SE NÃO HOUVE FALA, CONTINUA OUVINDO.
-      // SE A VOZ AINDA ESTIVER TOCANDO, TENTA NOVAMENTE.
       startListening(speaking);
     }
   };
@@ -991,8 +1220,6 @@ if (SpeechRecognition && micBtn) {
 
     if (!transcript) return;
 
-    // SE O USUÁRIO COMEÇAR A FALAR DURANTE A RESPOSTA,
-    // INTERROMPE O ÁUDIO IMEDIATAMENTE.
     if (speaking && transcript.length >= 3) {
       interruptedSpeech = true;
 
@@ -1008,7 +1235,6 @@ if (SpeechRecognition && micBtn) {
     }
   };
 
-  // UM TOQUE INICIA, OUTRO TOQUE ENCERRA
   micBtn.addEventListener("click", async () => {
     if (voiceMode) {
       stopListening();
@@ -1045,6 +1271,10 @@ fetch("/api/status")
   .catch(() => {
     statusText.textContent = "OFFLINE";
   });
+
+// INICIALIZAÇÃO
+loadLocalData();
+restoreConversation();
 
 // SERVICE WORKER
 if ("serviceWorker" in navigator) {
