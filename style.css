@@ -9,30 +9,28 @@
   --panel: #11100d;
   --muted: #a99f8d;
   --text: #f5f0e6;
-  --border: rgba(217, 173, 85, .18);
+  --border: rgba(217, 173, 85, .22);
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
+html,
+body {
   width: 100%;
   height: 100%;
+  min-height: 0;
+  margin: 0;
   overflow: hidden;
   background: var(--bg);
 }
 
 body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(115, 79, 25, .09), transparent 42%),
+    radial-gradient(ellipse at 50% 0%, rgba(115, 79, 25, .12), transparent 45%),
     var(--bg);
 }
 
@@ -53,20 +51,22 @@ button {
   height: 100vh;
   height: 100dvh;
   min-height: 0;
-  margin: auto;
-  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+  margin: 0 auto;
+  padding:
+    env(safe-area-inset-top)
+    12px
+    env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .topbar {
-  flex: 0 0 58px;
-  min-height: 58px;
+  flex: 0 0 56px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -83,7 +83,7 @@ button {
 
 .brand-mark .crown {
   font-size: 21px;
-  text-shadow: 0 0 9px rgba(217, 173, 85, .2);
+  text-shadow: 0 0 9px rgba(217, 173, 85, .3);
 }
 
 .brand-mark strong {
@@ -97,8 +97,6 @@ button {
   display: none !important;
 }
 
-/* BOLINHA VERDE AO LADO DO NOME */
-
 .brand-mark::after {
   content: "";
   display: block;
@@ -108,7 +106,7 @@ button {
   margin-left: 3px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 10px rgba(66, 207, 128, .55);
+  box-shadow: 0 0 10px rgba(66, 207, 128, .6);
   animation: statusPulse 2.5s infinite;
 }
 
@@ -126,6 +124,7 @@ button {
 
 main {
   flex: 1 1 0;
+  width: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -141,13 +140,12 @@ main {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   align-items: center;
-  gap: 0;
-  padding: 13px 8px 10px;
+  padding: 10px 8px 9px;
 }
 
 .hero-photo-wrap {
   position: relative;
-  width: 120px;
+  width: 112px;
   max-width: 100%;
   aspect-ratio: 1;
   display: grid;
@@ -162,7 +160,7 @@ main {
   inset: 0;
   border-radius: 50%;
   border: 1.5px solid var(--gold);
-  box-shadow: 0 0 15px rgba(217, 173, 85, .16);
+  box-shadow: 0 0 17px rgba(217, 173, 85, .2);
 }
 
 .hero-photo-wrap::after {
@@ -170,14 +168,14 @@ main {
   position: absolute;
   inset: -6px;
   border-radius: 50%;
-  border: 1px solid rgba(217, 173, 85, .2);
+  border: 1px solid rgba(217, 173, 85, .23);
   pointer-events: none;
 }
 
 .hero-orbit {
   position: absolute;
   inset: -9px;
-  border: 1px solid rgba(217, 173, 85, .1);
+  border: 1px solid rgba(217, 173, 85, .12);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -229,12 +227,12 @@ main {
 
 .presence-panel {
   flex: 0 0 auto;
-  margin: 0 0 10px;
+  margin: 0 0 9px;
   padding: 7px 12px;
   min-height: 43px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(17, 16, 13, .68);
+  background: rgba(17, 16, 13, .75);
   text-align: center;
   transition: border-color .3s, background .3s;
 }
@@ -315,7 +313,7 @@ main {
 
 @keyframes corePulse {
   50% {
-    box-shadow: 0 0 20px rgba(217, 173, 85, .4);
+    box-shadow: 0 0 22px rgba(217, 173, 85, .45);
   }
 }
 
@@ -329,7 +327,7 @@ main {
 
 #presencePanel.listening,
 #presencePanel.speaking {
-  border-color: rgba(217, 173, 85, .42);
+  border-color: rgba(217, 173, 85, .55);
 }
 
 #presencePanel.listening .voice-visualizer span,
@@ -371,38 +369,54 @@ main {
   }
 }
 
-/* PAINEL DE CONVERSA */
+/* MOLDURA DOURADA DA CONVERSA */
 
 .chat-panel {
   flex: 1 1 0;
+  width: 100%;
   min-width: 0;
   min-height: 0;
-  height: 0;
-  display: flex;
-  flex-direction: column;
+  height: auto;
+  align-self: stretch;
+
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+
   overflow: hidden;
-  border: 1px solid rgba(217, 173, 85, .22);
-  border-radius: 17px;
-  padding: 12px;
-  background: linear-gradient(145deg, #15130f, #0d0c0a);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, .2);
+
+  border: 1.5px solid rgba(217, 173, 85, .72);
+  border-radius: 18px;
+
+  padding: 11px;
+
+  background:
+    linear-gradient(145deg, rgba(29, 24, 15, .98), rgba(10, 9, 7, .99));
+
+  box-shadow:
+    0 0 0 1px rgba(217, 173, 85, .12),
+    0 0 18px rgba(217, 173, 85, .10),
+    0 10px 30px rgba(0, 0, 0, .35);
 }
 
-/* TÍTULO FIXO */
+/* CABEÇALHO DA CONVERSA */
 
 .chat-head {
+  grid-row: 1;
   position: relative;
   z-index: 2;
-  flex: 0 0 auto;
+  min-height: 0;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   color: var(--gold-soft);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 1.6px;
-  padding: 3px 2px 10px;
-  border-bottom: 1px solid var(--border);
-  background: #12100d;
+
+  padding: 3px 3px 11px;
+  border-bottom: 1px solid rgba(217, 173, 85, .25);
+  background: transparent;
 }
 
 .chat-title {
@@ -412,10 +426,11 @@ main {
 }
 
 .chat-title-indicator {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   background: var(--gold);
   border-radius: 50%;
+  box-shadow: 0 0 8px rgba(217, 173, 85, .45);
 }
 
 .text-btn {
@@ -431,38 +446,38 @@ main {
   opacity: .5;
 }
 
-/* HISTÓRICO COM ROLAGEM INDEPENDENTE */
+/* HISTÓRICO DE MENSAGENS */
 
-.messages {
+#messages.messages {
+  grid-row: 2;
+
   position: relative;
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
-  height: 0 !important;
-  max-height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
 
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 13px !important;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
 
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-x: hidden;
+  overflow-y: auto;
 
-  -webkit-overflow-scrolling: touch !important;
-  overscroll-behavior-y: contain !important;
-  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 
-  padding: 13px 4px !important;
+  padding: 14px 4px;
 
   scrollbar-width: thin;
   scrollbar-color: #66512e transparent;
 }
 
-/* MENSAGENS NÃO ESTICAM O PAINEL */
-
-.messages > .message {
-  flex: 0 0 auto !important;
-  min-width: 0 !important;
+#messages > .message {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .message {
@@ -506,14 +521,14 @@ main {
 .message-body {
   min-width: 0;
   padding: 11px 13px;
-  border: 1px solid rgba(217, 173, 85, .18);
+  border: 1px solid rgba(217, 173, 85, .2);
   border-radius: 5px 14px 14px 14px;
   background: #171510;
   line-height: 1.55;
 }
 
 .message.user .message-body {
-  border-color: rgba(232, 75, 66, .28);
+  border-color: rgba(232, 75, 66, .3);
   border-radius: 14px 5px 14px 14px;
   background: #19100e;
 }
@@ -547,24 +562,34 @@ main {
   margin-top: 8px;
 }
 
-/* CAMPO DE DIGITAÇÃO FIXO */
+/* CAMPO DE DIGITAÇÃO */
 
-.composer {
+.chat-panel > .composer {
+  grid-row: 3;
+
   position: relative;
   z-index: 3;
-  flex: 0 0 auto !important;
+  flex: 0 0 auto;
+
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 51px;
-  border: 1px solid rgba(217, 173, 85, .36);
+  gap: 7px;
+
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+
+  margin: 0;
+  border: 1px solid rgba(217, 173, 85, .55);
   border-radius: 15px;
-  padding: 4px 5px 4px 10px;
+  padding: 5px 6px 5px 12px;
+
   background: #090908;
 }
 
 .composer:focus-within {
   border-color: var(--gold);
+  box-shadow: 0 0 10px rgba(217, 173, 85, .12);
 }
 
 .composer input {
@@ -584,15 +609,15 @@ main {
 }
 
 .send-btn {
-  width: 41px;
-  height: 41px;
-  min-width: 41px;
-  flex: 0 0 41px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  flex: 0 0 44px;
   border: 0;
   border-radius: 12px;
   background: var(--red);
   color: #fff;
-  font-size: 19px;
+  font-size: 20px;
   transition: transform .2s, background .2s;
 }
 
@@ -601,37 +626,47 @@ main {
   background: #c93b34;
 }
 
-/* BOTÕES INFERIORES */
+/* BOTÕES FALAR E ADICIONAR FOTO */
 
-.controls {
+.chat-panel > .controls {
+  grid-row: 4;
+
   position: relative;
   z-index: 3;
-  flex: 0 0 auto !important;
+  flex: 0 0 auto;
+
   display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  align-items: stretch;
+  justify-content: stretch;
   gap: 10px;
+
+  width: 100%;
   margin-top: 10px;
 }
 
 .mic-btn {
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
-  max-width: 190px;
-  min-height: 45px;
-  border: 1px solid rgba(217, 173, 85, .55);
-  background: #17140e;
+  max-width: none;
+  min-height: 52px;
+
+  border: 1px solid rgba(217, 173, 85, .72);
+  background: linear-gradient(145deg, #211b10, #151109);
   color: var(--gold-soft);
+
   border-radius: 14px;
-  padding: 9px 17px;
-  font-size: 10px;
-  font-weight: 750;
+  padding: 10px 14px;
+
+  font-size: 11px;
+  font-weight: 800;
   letter-spacing: 1.5px;
+
   transition: all .25s;
 }
 
 .mic-btn:active {
-  transform: scale(.96);
+  transform: scale(.97);
 }
 
 .mic-btn.active {
@@ -648,40 +683,50 @@ main {
 }
 
 .mic-symbol {
-  font-size: 15px;
-  margin-right: 6px;
+  font-size: 17px;
+  margin-right: 7px;
 }
 
 .add-btn {
-  width: 45px;
-  height: 45px;
-  flex: 0 0 45px;
+  width: 58px;
+  min-width: 58px;
+  height: 52px;
+  flex: 0 0 58px;
+
   display: grid;
   place-items: center;
-  border: 1px solid rgba(217, 173, 85, .55);
+
+  border: 1px solid rgba(217, 173, 85, .72);
   border-radius: 14px;
-  background: #17140e;
+
+  background: linear-gradient(145deg, #211b10, #151109);
   color: var(--gold);
-  font-size: 25px;
+
+  font-size: 28px;
   line-height: 1;
-  transition: transform .2s;
+
+  transition: transform .2s, background .2s;
 }
 
 .add-btn:active {
-  transform: rotate(90deg) scale(.93);
+  transform: scale(.94);
 }
 
 /* AVISO INFERIOR */
 
-.privacy-note {
+.chat-panel > .privacy-note {
+  grid-row: 5;
+
   position: relative;
   z-index: 3;
-  flex: 0 0 auto !important;
+  flex: 0 0 auto;
+
   text-align: center;
   color: #817765;
   font-size: 8px;
   line-height: 1.4;
-  margin: 7px 0 2px;
+
+  margin: 8px 0 1px;
   opacity: .75;
 }
 
@@ -693,43 +738,49 @@ footer {
 
 @media (max-width: 390px) {
   .app-shell {
-    padding-left: 11px;
-    padding-right: 11px;
+    padding-left: 9px;
+    padding-right: 9px;
   }
 
   .hero {
-    padding-top: 10px;
-    padding-bottom: 8px;
+    padding-top: 8px;
+    padding-bottom: 7px;
   }
 
   .hero-photo-wrap {
-    width: 108px;
+    width: 105px;
   }
 
   .presence-panel {
-    margin-bottom: 8px;
+    margin-bottom: 7px;
   }
 
   .chat-panel {
     padding: 9px;
   }
 
-  .mic-btn {
-    max-width: 175px;
+  .chat-panel > .controls {
+    gap: 8px;
+  }
+
+  .add-btn {
+    width: 55px;
+    min-width: 55px;
+    flex-basis: 55px;
   }
 }
 
-/* TELAS MUITO BAIXAS */
+/* TELAS BAIXAS */
 
-@media (max-height: 720px) {
+@media (max-height: 750px) {
   .topbar {
     flex-basis: 48px;
     min-height: 48px;
   }
 
   .hero {
-    padding-top: 6px;
-    padding-bottom: 6px;
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
 
   .hero-photo-wrap {
@@ -737,13 +788,13 @@ footer {
   }
 
   .presence-panel {
-    min-height: 38px;
+    min-height: 37px;
     padding: 5px 10px;
-    margin-bottom: 7px;
+    margin-bottom: 6px;
   }
 
   .voice-visualizer {
-    height: 14px;
+    height: 13px;
     margin-top: 1px;
   }
 
@@ -751,26 +802,71 @@ footer {
     padding: 8px;
   }
 
-  .controls {
+  .chat-panel > .controls {
     margin-top: 7px;
   }
 
-  .privacy-note {
+  .mic-btn,
+  .add-btn {
+    min-height: 46px;
+    height: 46px;
+  }
+
+  .chat-panel > .privacy-note {
     margin-top: 5px;
+  }
+}
+
+/* TELAS MUITO BAIXAS */
+
+@media (max-height: 620px) {
+  .hero-photo-wrap {
+    width: 72px;
+  }
+
+  .presence-panel {
+    min-height: 32px;
+    padding: 3px 8px;
+  }
+
+  .voice-visualizer {
+    display: none;
+  }
+
+  .chat-panel {
+    padding: 7px;
+  }
+
+  .composer {
+    min-height: 47px;
+  }
+
+  .composer input {
+    min-height: 37px;
+  }
+
+  .send-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    flex-basis: 38px;
   }
 }
 
 /* TELAS MAIORES */
 
 @media (min-width: 650px) {
-  .hero {
-    grid-template-columns: minmax(0, 1fr);
-    padding-top: 15px;
-    padding-bottom: 10px;
+  .app-shell {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
   .hero-photo-wrap {
     width: 125px;
+  }
+
+  .chat-panel {
+    padding: 15px;
   }
 }
 
@@ -783,169 +879,5 @@ footer {
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-  }
-}
-/* =====================================
-   CORREÇÃO DEFINITIVA DA ROLAGEM
-   SAFARI / IPHONE
-===================================== */
-
-/* Organiza a conversa em quatro áreas */
-.chat-panel {
-  display: grid !important;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  overflow: hidden !important;
-}
-
-/* Cabeçalho permanece fixo */
-.chat-head {
-  grid-row: 1;
-  min-height: 0;
-}
-
-/* Histórico ocupa somente o espaço livre */
-#messages.messages {
-  grid-row: 2;
-  display: flex !important;
-  flex-direction: column !important;
-  min-height: 0 !important;
-  height: 100% !important;
-  max-height: 100% !important;
-  overflow-y: scroll !important;
-  overflow-x: hidden !important;
-  -webkit-overflow-scrolling: touch !important;
-  overscroll-behavior-y: contain !important;
-  touch-action: pan-y !important;
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* Campo de digitação fica abaixo do histórico */
-.chat-panel > .composer {
-  grid-row: 3;
-  position: relative !important;
-  z-index: 2 !important;
-  margin: 0 !important;
-}
-
-/* Botões ficam abaixo do campo */
-.chat-panel > .controls {
-  grid-row: 4;
-  position: relative !important;
-  z-index: 2 !important;
-}
-
-/* Aviso fica na última linha */
-.chat-panel > .privacy-note {
-  grid-row: 5;
-}
-
-/* Não permite que as mensagens sejam comprimidas */
-#messages .message {
-  flex-shrink: 0 !important;
-}
-
-/* Mantém a rolagem independente */
-#messages,
-#messages * {
-  overscroll-behavior: contain;
-}
-/* =====================================
-   VARJÃO — OCUPAR A TELA DO IPHONE
-===================================== */
-
-html,
-body {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-}
-
-.app-shell {
-  width: 100% !important;
-  max-width: 760px !important;
-  height: 100vh !important;
-  height: 100dvh !important;
-  min-height: 100dvh !important;
-  margin: 0 auto !important;
-  padding-top: max(env(safe-area-inset-top), 12px) !important;
-  padding-bottom: max(env(safe-area-inset-bottom), 10px) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-.topbar {
-  flex: 0 0 58px !important;
-}
-
-main {
-  flex: 1 1 0% !important;
-  width: 100% !important;
-  min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-.hero {
-  flex: 0 0 auto !important;
-  padding-top: 10px !important;
-  padding-bottom: 10px !important;
-}
-
-.hero-photo-wrap {
-  width: 120px !important;
-}
-
-.presence-panel {
-  flex: 0 0 auto !important;
-  margin-bottom: 10px !important;
-}
-
-/* A conversa ocupa todo o espaço que sobrar */
-.chat-panel {
-  flex: 1 1 0% !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 0 !important;
-  align-self: stretch !important;
-  display: grid !important;
-  grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
-  overflow: hidden !important;
-}
-
-/* Histórico independente */
-#messages {
-  min-height: 0 !important;
-  height: auto !important;
-  overflow-y: auto !important;
-  -webkit-overflow-scrolling: touch !important;
-}
-
-/* Controles sempre visíveis */
-.composer,
-.controls,
-.privacy-note {
-  flex-shrink: 0 !important;
-}
-
-@media (max-height: 750px) {
-  .hero {
-    padding-top: 5px !important;
-    padding-bottom: 5px !important;
-  }
-
-  .hero-photo-wrap {
-    width: 95px !important;
-  }
-
-  .presence-panel {
-    margin-bottom: 6px !important;
   }
 }
