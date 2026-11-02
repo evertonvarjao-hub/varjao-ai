@@ -8,6 +8,7 @@
 
   const STORAGE_KEY = "varjao_conversations_v1";
   const LEGACY_KEY = "varjao_history_v2";
+  const ACTIVE_KEY = "varjao_active_conversation_v1";
   const MAX_CONVERSATIONS = 100;
 
   let conversations = [];
@@ -48,6 +49,7 @@
     return {
       id: createId(),
       title: "Nova conversa",
+      titleEdited: false,
       messages: Array.isArray(messages)
         ? messages.map(item => ({
             role: item.role,
@@ -83,14 +85,24 @@
 
   function persistConversations() {
     try {
-      conversations = conversations
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .slice(0, MAX_CONVERSATIONS);
+      conversations.sort(
+        (a, b) => b.updatedAt - a.updatedAt
+      );
+
+      conversations = conversations.slice(0, MAX_CONVERSATIONS);
 
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify(conversations)
       );
+
+      if (activeConversationId) {
+        localStorage.setItem(
+          ACTIVE_KEY,
+          activeConversationId
+        );
+      }
+
     } catch (error) {
       console.error("Erro ao salvar histórico:", error);
     }
@@ -131,17 +143,38 @@
         }
       }
 
+      conversations.forEach(item => {
+        if (typeof item.titleEdited !== "boolean") {
+          item.titleEdited = false;
+        }
+
+        if (!item.title) {
+          item.title = getConversationTitle(item.messages);
+        }
+
+        if (!item.updatedAt) {
+          item.updatedAt = Date.now();
+        }
+      });
+
       if (!conversations.length) {
         conversations.push(createConversation());
       }
 
-      const current = conversations.find(item =>
-        item.messages.length > 0
-      ) || conversations[0];
+      const savedActiveId = localStorage.getItem(ACTIVE_KEY);
+
+      const savedActive = conversations.find(item =>
+        item.id === savedActiveId
+      );
+
+      const current = savedActive ||
+        conversations.find(item => item.messages.length > 0) ||
+        conversations[0];
 
       activeConversationId = current.id;
 
       window.historySystemReady = true;
+
       persistConversations();
 
     } catch (error) {
@@ -168,14 +201,17 @@
       content: item.content
     }));
 
-    current.title = getConversationTitle(current.messages);
+    if (!current.titleEdited) {
+      current.title = getConversationTitle(current.messages);
+    }
+
     current.updatedAt = Date.now();
 
     persistConversations();
     renderHistory();
   }
 
-  // SUBSTITUI O SALVAMENTO ANTIGO
+  // SALVAMENTO
   window.saveHistory = function () {
     if (typeof originalSaveHistory === "function") {
       originalSaveHistory();
@@ -184,6 +220,7 @@
     saveCurrentConversation();
   };
 
+  // ABRIR E FECHAR HISTÓRICO
   function openHistory() {
     renderHistory();
 
@@ -198,6 +235,71 @@
     document.body.classList.remove("history-open");
   }
 
+  // RENOMEAR CONVERSA
+  function renameConversation(conversation) {
+    const newName = window.prompt(
+      "Digite o novo nome desta conversa:",
+      conversation.title || "Nova conversa"
+    );
+
+    if (newName === null) return;
+
+    const cleanName = newName.trim();
+
+    if (!cleanName) {
+      window.alert("Digite um nome válido.");
+      return;
+    }
+
+    conversation.title = cleanName.slice(0, 60);
+    conversation.titleEdited = true;
+    conversation.updatedAt = Date.now();
+
+    persistConversations();
+    renderHistory();
+  }
+
+  // EXCLUIR CONVERSA
+  function deleteConversation(conversation) {
+    const confirmed = window.confirm(
+      'Deseja realmente excluir a conversa "' +
+      conversation.title +
+      '"? Esta ação não poderá ser desfeita.'
+    );
+
+    if (!confirmed) return;
+
+    const wasActive = conversation.id === activeConversationId;
+
+    conversations = conversations.filter(item =>
+      item.id !== conversation.id
+    );
+
+    if (wasActive) {
+      history = [];
+
+      if (!conversations.length) {
+        conversations.push(createConversation());
+      }
+
+      const next = conversations[0];
+      activeConversationId = next.id;
+
+      history = next.messages.map(item => ({
+        role: item.role,
+        content: item.content
+      }));
+
+      if (typeof originalRestoreConversation === "function") {
+        originalRestoreConversation();
+      }
+    }
+
+    persistConversations();
+    renderHistory();
+  }
+
+  // MOSTRAR CONVERSAS
   function renderHistory() {
     historyList.replaceChildren();
 
@@ -214,30 +316,100 @@
     );
 
     ordered.forEach(conversation => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "history-item";
+      const item = document.createElement("div");
+
+      item.className = "history-item";
 
       if (conversation.id === activeConversationId) {
-        button.classList.add("active");
+        item.classList.add("active");
       }
+
+      item.style.display = "flex";
+      item.style.flexDirection = "column";
+      item.style.gap = "8px";
+      item.style.padding = "12px";
+      item.style.marginBottom = "8px";
+
+      // ABRIR CONVERSA
+      const openButton = document.createElement("button");
+
+      openButton.type = "button";
+      openButton.style.width = "100%";
+      openButton.style.background = "transparent";
+      openButton.style.border = "none";
+      openButton.style.color = "inherit";
+      openButton.style.textAlign = "left";
+      openButton.style.padding = "0";
+      openButton.style.cursor = "pointer";
 
       const title = document.createElement("strong");
       title.textContent = conversation.title || "Nova conversa";
+      title.style.display = "block";
+      title.style.overflowWrap = "anywhere";
 
       const date = document.createElement("small");
       date.textContent = formatDate(conversation.updatedAt);
+      date.style.display = "block";
+      date.style.marginTop = "5px";
+      date.style.opacity = "0.7";
 
-      button.append(title, date);
+      openButton.append(title, date);
 
-      button.addEventListener("click", () => {
+      openButton.addEventListener("click", () => {
         openConversation(conversation.id);
       });
 
-      historyList.appendChild(button);
+      // AÇÕES
+      const actions = document.createElement("div");
+
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      actions.style.flexWrap = "wrap";
+
+      // BOTÃO RENOMEAR
+      const renameButton = document.createElement("button");
+
+      renameButton.type = "button";
+      renameButton.textContent = "✏️ Renomear";
+      renameButton.style.padding = "7px 10px";
+      renameButton.style.borderRadius = "8px";
+      renameButton.style.border = "1px solid #d9ad55";
+      renameButton.style.background = "transparent";
+      renameButton.style.color = "#d9ad55";
+      renameButton.style.fontSize = "12px";
+      renameButton.style.cursor = "pointer";
+
+      renameButton.addEventListener("click", event => {
+        event.stopPropagation();
+        renameConversation(conversation);
+      });
+
+      // BOTÃO EXCLUIR
+      const deleteButton = document.createElement("button");
+
+      deleteButton.type = "button";
+      deleteButton.textContent = "🗑️ Excluir";
+      deleteButton.style.padding = "7px 10px";
+      deleteButton.style.borderRadius = "8px";
+      deleteButton.style.border = "1px solid #e84b42";
+      deleteButton.style.background = "transparent";
+      deleteButton.style.color = "#e84b42";
+      deleteButton.style.fontSize = "12px";
+      deleteButton.style.cursor = "pointer";
+
+      deleteButton.addEventListener("click", event => {
+        event.stopPropagation();
+        deleteConversation(conversation);
+      });
+
+      actions.append(renameButton, deleteButton);
+      item.append(openButton, actions);
+
+      historyList.appendChild(item);
     });
   }
 
+  // DATA DA CONVERSA
   function formatDate(timestamp) {
     const date = new Date(timestamp);
 
@@ -270,6 +442,7 @@
     });
   }
 
+  // ABRIR UMA CONVERSA
   function openConversation(id) {
     const selected = conversations.find(item => item.id === id);
 
@@ -290,10 +463,12 @@
       originalRestoreConversation();
     }
 
+    persistConversations();
     closeHistory();
     renderHistory();
   }
 
+  // NOVA CONVERSA
   function startNewConversation() {
     if (typeof stopListening === "function") {
       stopListening();
@@ -316,13 +491,6 @@
       originalRestoreConversation();
     } else {
       messagesEl.replaceChildren();
-    }
-
-    if (typeof addMessage === "function") {
-      addMessage(
-        "assistant",
-        "Olá! Sou o VARJÃO. Vamos começar uma nova conversa?"
-      );
     }
 
     if (typeof saveHistory === "function") {
@@ -357,8 +525,15 @@
 
   // BOTÕES
   historyBtn.addEventListener("click", openHistory);
-  historyClose.addEventListener("click", closeHistory);
-  newConversationBtn.addEventListener("click", startNewConversation);
+
+  if (historyClose) {
+    historyClose.addEventListener("click", closeHistory);
+  }
+
+  newConversationBtn.addEventListener(
+    "click",
+    startNewConversation
+  );
 
   historyOverlay.addEventListener("click", event => {
     if (event.target === historyOverlay) {
@@ -372,8 +547,7 @@
     }
   });
 
-  // LIMPAR AGORA INICIA UMA NOVA CONVERSA,
-  // SEM APAGAR AS CONVERSAS ANTERIORES.
+  // LIMPAR INICIA UMA NOVA CONVERSA
   if (clearBtn) {
     clearBtn.addEventListener("click", event => {
       event.preventDefault();
