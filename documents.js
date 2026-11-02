@@ -35,6 +35,21 @@
     documentStatus.textContent = message;
   }
 
+  function chatMessage(role, message) {
+    if (typeof window.addMessage === "function") {
+      window.addMessage(role, message);
+    }
+  }
+
+  async function speakIfNeeded(message, speakResponse) {
+    if (
+      speakResponse &&
+      typeof window.speak === "function"
+    ) {
+      await window.speak(message);
+    }
+  }
+
   function setBusy(value) {
     busy = value;
 
@@ -44,7 +59,7 @@
     documentBtn.disabled = value;
 
     if (value) {
-      documentPanel.classList.add("active");
+      showPanel();
     }
   }
 
@@ -60,6 +75,13 @@
     return data;
   }
 
+  function hasDocument() {
+    return Boolean(
+      currentFilename &&
+      documentContent.value.trim()
+    );
+  }
+
   // ABRIR SELEÇÃO DE ARQUIVOS
   documentBtn.addEventListener("click", () => {
     if (busy) return;
@@ -68,14 +90,14 @@
     documentInput.click();
   });
 
-  // FECHAR ÁREA DE DOCUMENTOS
+  // FECHAR PAINEL SEM DESCARTAR O DOCUMENTO
   documentClose.addEventListener("click", () => {
     if (busy) return;
 
     documentPanel.classList.remove("active");
   });
 
-  // ENVIAR DOCUMENTO AO SERVIDOR
+  // CARREGAR DOCUMENTO
   documentInput.addEventListener("change", async () => {
     const file = documentInput.files?.[0];
 
@@ -89,7 +111,13 @@
       return;
     }
 
-    const allowedExtensions = [".pdf", ".docx", ".txt", ".xlsx"];
+    const allowedExtensions = [
+      ".pdf",
+      ".docx",
+      ".txt",
+      ".xlsx"
+    ];
+
     const extension = file.name
       .slice(file.name.lastIndexOf("."))
       .toLowerCase();
@@ -123,43 +151,54 @@
 
       documentContent.value = originalContent;
 
-      if (data.truncated) {
-        setStatus(
-          "Documento lido. Atenção: o conteúdo é extenso e foi limitado a 100.000 caracteres."
+      if (!originalContent.trim()) {
+        throw new Error(
+          "Não consegui encontrar texto legível nesse documento."
         );
-      } else {
-        setStatus("Documento carregado e pronto para edição.");
       }
+
+      setStatus(
+        "Documento carregado. Você já pode conversar comigo sobre ele."
+      );
+
+      chatMessage(
+        "user",
+        "Anexei o documento: " + currentFilename
+      );
+
+      chatMessage(
+        "assistant",
+        "Recebi e consegui ler o documento. Pode me dizer por aqui, digitando ou falando, o que deseja alterar. Vou atualizar o conteúdo e preservar o original."
+      );
 
     } catch (error) {
       console.error("ERRO AO CARREGAR DOCUMENTO:", error);
       setStatus(error.message || "Falha ao ler o documento.");
+
+      currentFilename = "";
+      originalContent = "";
+      documentContent.value = "";
+
     } finally {
       setBusy(false);
       documentInput.value = "";
     }
   });
 
-  // PEDIR EDIÇÃO À INTELIGÊNCIA ARTIFICIAL
-  documentEdit.addEventListener("click", async () => {
-    if (busy) return;
-
+  // EDITAR DOCUMENTO
+  async function applyDocumentInstruction(instruction) {
     const text = documentContent.value.trim();
-    const instruction = documentInstruction.value.trim();
 
     if (!text) {
-      setStatus("Carregue um documento antes de editar.");
-      return;
+      throw new Error("Carregue um documento antes de editar.");
     }
 
-    if (!instruction) {
-      setStatus("Escreva o que deseja alterar no documento.");
-      documentInstruction.focus();
-      return;
+    if (!instruction.trim()) {
+      throw new Error("Diga o que deseja alterar.");
     }
 
     setBusy(true);
-    setStatus("O VARJÃO está analisando e editando o documento...");
+    setStatus("O VARJÃO está trabalhando no documento...");
 
     try {
       const response = await fetch("/api/document/edit", {
@@ -170,39 +209,38 @@
         body: JSON.stringify({
           filename: currentFilename || "Documento",
           documentText: text,
-          instruction
+          instruction: instruction
         })
       });
 
       const data = await readJsonResponse(response);
 
       if (!data.editedText) {
-        throw new Error("A inteligência não retornou o documento editado.");
+        throw new Error(
+          "A inteligência não retornou o documento editado."
+        );
       }
 
       documentContent.value = data.editedText;
+      documentInstruction.value = "";
 
       setStatus(
-        "Edição concluída! O original continua preservado. Confira o resultado antes de gerar o PDF."
+        "Alteração concluída. O documento foi atualizado."
       );
 
-    } catch (error) {
-      console.error("ERRO NA EDIÇÃO:", error);
-      setStatus(error.message || "Não foi possível editar o documento.");
+      return "Pronto! Fiz a alteração no documento. O resultado já está atualizado na visualização. Pode me pedir outras mudanças.";
+
     } finally {
       setBusy(false);
     }
-  });
+  }
 
-  // GERAR E SALVAR PDF
-  documentExport.addEventListener("click", async () => {
-    if (busy) return;
-
+  // GERAR PDF
+  async function exportCurrentDocument() {
     const text = documentContent.value.trim();
 
     if (!text) {
-      setStatus("Não há conteúdo para gerar o PDF.");
-      return;
+      throw new Error("Não há conteúdo para gerar o PDF.");
     }
 
     setBusy(true);
@@ -226,6 +264,7 @@
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
+
         throw new Error(
           data.error || "Não foi possível gerar o PDF."
         );
@@ -243,7 +282,6 @@
         { type: "application/pdf" }
       );
 
-      // NO IPHONE, ABRIR A FOLHA DE COMPARTILHAMENTO
       if (
         navigator.share &&
         navigator.canShare &&
@@ -256,16 +294,19 @@
           });
 
           setStatus("PDF preparado para salvar ou compartilhar.");
-          return;
+
+          return "O PDF está pronto. Você pode salvá-lo no aplicativo Arquivos ou compartilhá-lo.";
         } catch (shareError) {
           if (shareError.name === "AbortError") {
             setStatus("Compartilhamento cancelado.");
-            return;
+
+            return "O compartilhamento foi cancelado. O documento continua disponível para gerar novamente.";
           }
+
+          throw shareError;
         }
       }
 
-      // ALTERNATIVA PARA NAVEGADORES SEM COMPARTILHAMENTO
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement("a");
 
@@ -279,16 +320,174 @@
 
       setTimeout(() => URL.revokeObjectURL(url), 60000);
 
-      setStatus("PDF gerado. Verifique os downloads do navegador.");
+      setStatus("PDF gerado. Verifique os downloads.");
 
-    } catch (error) {
-      console.error("ERRO AO EXPORTAR PDF:", error);
-      setStatus(error.message || "Falha ao gerar o PDF.");
+      return "PDF gerado. Verifique os downloads do navegador.";
+
     } finally {
       setBusy(false);
     }
+  }
+
+  // BOTÃO DE EDIÇÃO MANUAL
+  documentEdit.addEventListener("click", async () => {
+    if (busy) return;
+
+    const instruction = documentInstruction.value.trim();
+
+    if (!instruction) {
+      setStatus("Escreva o que deseja alterar.");
+      documentInstruction.focus();
+      return;
+    }
+
+    try {
+      const result = await applyDocumentInstruction(instruction);
+      chatMessage("assistant", result);
+
+    } catch (error) {
+      console.error("ERRO NA EDIÇÃO:", error);
+      setStatus(error.message || "Não foi possível editar.");
+    }
   });
 
-  console.log("Módulo de documentos do VARJÃO carregado.");
-})();
+  // BOTÃO DE EXPORTAÇÃO
+  documentExport.addEventListener("click", async () => {
+    if (busy) return;
 
+    try {
+      const result = await exportCurrentDocument();
+      chatMessage("assistant", result);
+
+    } catch (error) {
+      console.error("ERRO AO EXPORTAR:", error);
+      setStatus(error.message || "Falha ao gerar o PDF.");
+    }
+  });
+
+  // IDENTIFICAR PEDIDOS DE ALTERAÇÃO
+  function isDocumentEditRequest(text) {
+    return /\b(corrij\w*|revis\w*|melhor\w*|acrescent\w*|adicione\w*|inclu\w*|retir\w*|remov\w*|exclu\w*|substitu\w*|alter\w*|mud\w*|reorganiz\w*|reformul\w*|reescrev\w*|atualiz\w*|transform\w*|format\w*|ajust\w*|arrum\w*|traduz\w*|resum\w*|reduz\w*|aument\w*|insir\w*|coloc\w*|tir\w*|deix\w*|faç\w*|fac\w*|crie\w*|complete\w*|preench\w*|padroniz\w*|simplifi\w*|detalh\w*|organiz\w*)\b/i.test(text);
+  }
+
+  function isExportRequest(text) {
+    return /\b(gerar|gere|gera|exportar|exporte|exporta|baixar|baixe|salvar|salve)\b/i.test(text) &&
+      /\b(pdf|arquivo|documento)\b/i.test(text);
+  }
+
+  function isCloseDocumentRequest(text) {
+    return /\b(encerrar|desanexar|remover|descartar|finalizar)\b/i.test(text) &&
+      /\b(documento|arquivo)\b/i.test(text);
+  }
+
+  // CONECTAR OS PEDIDOS À CONVERSA E AO MICROFONE
+  const originalSendMessage = window.sendMessage;
+
+  if (typeof originalSendMessage === "function") {
+    window.sendMessage = async function(
+      text,
+      imageData = null,
+      speakResponse = false,
+      voiceAudio = null
+    ) {
+      const clean = String(text || "").trim();
+
+      if (
+        !clean ||
+        imageData ||
+        !hasDocument() ||
+        busy
+      ) {
+        return originalSendMessage.call(
+          this,
+          text,
+          imageData,
+          speakResponse,
+          voiceAudio
+        );
+      }
+
+      if (isCloseDocumentRequest(clean)) {
+        chatMessage("user", clean);
+
+        currentFilename = "";
+        originalContent = "";
+        documentContent.value = "";
+        documentInstruction.value = "";
+        documentFilename.textContent = "Nenhum documento selecionado.";
+
+        documentPanel.classList.remove("active");
+        setStatus("Documento encerrado.");
+
+        const answer =
+          "Certo. Encerrei o trabalho com esse documento. Podemos continuar nossa conversa normalmente.";
+
+        chatMessage("assistant", answer);
+        await speakIfNeeded(answer, speakResponse);
+        return;
+      }
+
+      if (isExportRequest(clean)) {
+        chatMessage("user", clean);
+
+        try {
+          const answer = await exportCurrentDocument();
+
+          chatMessage("assistant", answer);
+          await speakIfNeeded(answer, speakResponse);
+
+        } catch (error) {
+          const answer = "Não consegui gerar o PDF: " + error.message;
+
+          setStatus(answer);
+          chatMessage("assistant", answer);
+          await speakIfNeeded(answer, speakResponse);
+        }
+
+        return;
+      }
+
+      if (!isDocumentEditRequest(clean)) {
+        return originalSendMessage.call(
+          this,
+          text,
+          imageData,
+          speakResponse,
+          voiceAudio
+        );
+      }
+
+      chatMessage("user", clean);
+
+      try {
+        const answer = await applyDocumentInstruction(clean);
+
+        chatMessage("assistant", answer);
+        await speakIfNeeded(answer, speakResponse);
+
+      } catch (error) {
+        const answer =
+          "Tive um problema ao alterar o documento: " + error.message;
+
+        setStatus(answer);
+        chatMessage("assistant", answer);
+        await speakIfNeeded(answer, speakResponse);
+      }
+    };
+  } else {
+    console.error(
+      "Não foi possível conectar a edição à conversa do VARJÃO."
+    );
+  }
+
+  // ACESSO AO ESTADO DO DOCUMENTO
+  window.VARJAO_DOCUMENTS = {
+    hasDocument,
+    getFilename: () => currentFilename,
+    getContent: () => documentContent.value
+  };
+
+  console.log(
+    "Módulo de documentos e edição por conversa carregado."
+  );
+})();
