@@ -5,196 +5,150 @@
   const documentBtn = document.getElementById("documentBtn");
   const documentInput = document.getElementById("documentInput");
   const documentPanel = document.getElementById("documentPanel");
-  const documentClose = document.getElementById("documentClose");
-  const documentFilename = document.getElementById("documentFilename");
   const documentContent = document.getElementById("documentContent");
   const documentInstruction = document.getElementById("documentInstruction");
   const documentEdit = document.getElementById("documentEdit");
   const documentExport = document.getElementById("documentExport");
-  const documentStatus = document.getElementById("documentStatus");
 
-  if (
-    !documentBtn ||
-    !documentInput ||
-    !documentPanel ||
-    !documentContent
-  ) {
-    console.error("Elementos da área de documentos não encontrados.");
-    return;
-  }
+  const documentStatus =
+    document.getElementById("documentStatus") ||
+    document.getElementById("documentStatusText");
 
   let currentFilename = "";
   let originalContent = "";
+  let editedContent = "";
   let busy = false;
 
-  function showPanel() {
-    documentPanel.classList.add("active");
-  }
-
   function setStatus(message) {
-    documentStatus.textContent = message;
-  }
-
-  function chatMessage(role, message) {
-    if (typeof window.addMessage === "function") {
-      window.addMessage(role, message);
-    }
-  }
-
-  async function speakIfNeeded(message, speakResponse) {
-    if (
-      speakResponse &&
-      typeof window.speak === "function"
-    ) {
-      await window.speak(message);
+    if (documentStatus) {
+      documentStatus.textContent = message || "";
     }
   }
 
   function setBusy(value) {
-    busy = value;
+    busy = Boolean(value);
 
-    documentEdit.disabled = value;
-    documentExport.disabled = value;
-    documentInput.disabled = value;
-    documentBtn.disabled = value;
+    if (documentEdit) documentEdit.disabled = busy;
+    if (documentExport) documentExport.disabled = busy;
+    if (documentBtn) documentBtn.disabled = busy;
 
-    if (value) {
-      showPanel();
+    if (documentEdit) {
+      documentEdit.textContent = busy ? "Aguarde..." : "Editar documento";
     }
   }
 
-  async function readJsonResponse(response) {
-    const data = await response.json().catch(() => ({}));
+  function showPanel() {
+    if (!documentPanel) return;
 
-    if (!response.ok) {
-      throw new Error(
-        data.error || "Não foi possível concluir a operação."
-      );
-    }
+    documentPanel.classList.add("active");
+    documentPanel.setAttribute("aria-hidden", "false");
+  }
 
-    return data;
+  function hidePanel() {
+    if (!documentPanel) return;
+
+    documentPanel.classList.remove("active");
+    documentPanel.setAttribute("aria-hidden", "true");
   }
 
   function hasDocument() {
     return Boolean(
-      currentFilename &&
+      documentContent &&
       documentContent.value.trim()
     );
   }
 
-  // ABRIR SELEÇÃO DE ARQUIVOS
-  documentBtn.addEventListener("click", () => {
-    if (busy) return;
+  function getDocumentText() {
+    return documentContent ? documentContent.value.trim() : "";
+  }
 
-    showPanel();
-    documentInput.click();
-  });
+  function showError(message) {
+    setStatus(message);
 
-  // FECHAR PAINEL SEM DESCARTAR O DOCUMENTO
-  documentClose.addEventListener("click", () => {
-    if (busy) return;
+    if (typeof window.addMessage === "function") {
+      window.addMessage("assistant", message);
+    } else {
+      alert(message);
+    }
+  }
 
-    documentPanel.classList.remove("active");
-  });
-
-  // CARREGAR DOCUMENTO
-  documentInput.addEventListener("change", async () => {
-    const file = documentInput.files?.[0];
-
+  async function uploadDocument(file) {
     if (!file) return;
 
-    showPanel();
+    const allowedExtensions = /\.(pdf|docx|txt|xlsx)$/i;
+
+    if (!allowedExtensions.test(file.name)) {
+      showError("Formato não permitido. Envie PDF, DOCX, TXT ou XLSX.");
+      return;
+    }
 
     if (file.size > 12 * 1024 * 1024) {
-      setStatus("O arquivo ultrapassa o limite de 12 MB.");
-      documentInput.value = "";
+      showError("O arquivo ultrapassa o limite de 12 MB.");
       return;
     }
 
-    const allowedExtensions = [
-      ".pdf",
-      ".docx",
-      ".txt",
-      ".xlsx"
-    ];
-
-    const extension = file.name
-      .slice(file.name.lastIndexOf("."))
-      .toLowerCase();
-
-    if (!allowedExtensions.includes(extension)) {
-      setStatus("Formato não suportado.");
-      documentInput.value = "";
-      return;
-    }
+    const formData = new FormData();
+    formData.append("file", file);
 
     setBusy(true);
-    setStatus("Enviando e lendo documento...");
-
-    documentFilename.textContent = file.name;
-    documentContent.value = "";
-    documentInstruction.value = "";
+    setStatus("Lendo documento...");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
       const response = await fetch("/api/document", {
         method: "POST",
         body: formData
       });
 
-      const data = await readJsonResponse(response);
+      const data = await response.json().catch(() => ({}));
 
-      currentFilename = data.filename || file.name;
-      originalContent = data.text || "";
-
-      documentContent.value = originalContent;
-
-      if (!originalContent.trim()) {
+      if (!response.ok || !data.ok) {
         throw new Error(
-          "Não consegui encontrar texto legível nesse documento."
+          data.error || "Não foi possível abrir o documento."
         );
       }
 
+      currentFilename = data.filename || file.name;
+      originalContent = data.text || "";
+      editedContent = "";
+
+      if (documentContent) {
+        documentContent.value = originalContent;
+      }
+
+      if (documentInstruction) {
+        documentInstruction.value = "";
+      }
+
+      showPanel();
+
       setStatus(
-        "Documento carregado. Você já pode conversar comigo sobre ele."
+        data.truncated
+          ? "Documento aberto. Parte do conteúdo foi limitada pelo servidor."
+          : "Documento carregado. Você já pode editar."
       );
-
-      chatMessage(
-        "user",
-        "Anexei o documento: " + currentFilename
-      );
-
-      chatMessage(
-        "assistant",
-        "Recebi e consegui ler o documento. Pode me dizer por aqui, digitando ou falando, o que deseja alterar. Vou atualizar o conteúdo e preservar o original."
-      );
-
     } catch (error) {
-      console.error("ERRO AO CARREGAR DOCUMENTO:", error);
-      setStatus(error.message || "Falha ao ler o documento.");
-
-      currentFilename = "";
-      originalContent = "";
-      documentContent.value = "";
-
+      showError(error.message || "Erro ao carregar o documento.");
     } finally {
       setBusy(false);
-      documentInput.value = "";
     }
-  });
+  }
 
-  // EDITAR DOCUMENTO
-  async function applyDocumentInstruction(instruction) {
-    const text = documentContent.value.trim();
+  async function editDocument() {
+    if (busy) return;
+
+    const text = getDocumentText();
+    const instruction = documentInstruction
+      ? documentInstruction.value.trim()
+      : "";
 
     if (!text) {
-      throw new Error("Carregue um documento antes de editar.");
+      showError("Primeiro, abra um documento ou escreva o conteúdo.");
+      return;
     }
 
-    if (!instruction.trim()) {
-      throw new Error("Diga o que deseja alterar.");
+    if (!instruction) {
+      showError("Escreva o que você quer que o VARJÃO faça no documento.");
+      return;
     }
 
     setBusy(true);
@@ -209,285 +163,176 @@
         body: JSON.stringify({
           filename: currentFilename || "Documento",
           documentText: text,
-          instruction: instruction
+          instruction
         })
       });
 
-      const data = await readJsonResponse(response);
+      const data = await response.json().catch(() => ({}));
 
-      if (!data.editedText) {
+      if (!response.ok || !data.ok) {
         throw new Error(
-          "A inteligência não retornou o documento editado."
+          data.error || "Não foi possível editar o documento."
         );
       }
 
-      documentContent.value = data.editedText;
-      documentInstruction.value = "";
+      editedContent = data.editedText || "";
 
-      setStatus(
-        "Alteração concluída. O documento foi atualizado."
-      );
+      if (!editedContent) {
+        throw new Error("A edição retornou um conteúdo vazio.");
+      }
 
-      return "Pronto! Fiz a alteração no documento. O resultado já está atualizado na visualização. Pode me pedir outras mudanças.";
+      if (documentContent) {
+        documentContent.value = editedContent;
+      }
 
+      setStatus("Documento editado com sucesso.");
+    } catch (error) {
+      showError(error.message || "Erro ao editar o documento.");
     } finally {
       setBusy(false);
     }
   }
 
-  // GERAR PDF
-  async function exportCurrentDocument() {
-    const text = documentContent.value.trim();
+  async function exportDocument() {
+    if (busy) return;
+
+    const text = getDocumentText();
 
     if (!text) {
-      throw new Error("Não há conteúdo para gerar o PDF.");
+      showError("Não há conteúdo para exportar.");
+      return;
     }
 
     setBusy(true);
-    setStatus("Gerando o PDF...");
+    setStatus("Preparando o PDF...");
 
     try {
-      const title = (currentFilename || "Documento")
-        .replace(/\.[^.]+$/, "")
-        .slice(0, 150);
-
       const response = await fetch("/api/document/export", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          title,
+          title: currentFilename || "Documento VARJÃO",
           text
         })
       });
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
+        let message = "Não foi possível gerar o PDF.";
 
-        throw new Error(
-          data.error || "Não foi possível gerar o PDF."
-        );
+        try {
+          const data = await response.json();
+          message = data.error || message;
+        } catch (_) {}
+
+        throw new Error(message);
       }
 
-      const pdfBlob = await response.blob();
-
-      if (!pdfBlob.size) {
-        throw new Error("O PDF gerado está vazio.");
-      }
-
+      const blob = await response.blob();
       const pdfFile = new File(
-        [pdfBlob],
-        "varjao-documento.pdf",
+        [blob],
+        makePdfFilename(currentFilename),
         { type: "application/pdf" }
       );
+
+      const fileUrl = URL.createObjectURL(blob);
 
       if (
         navigator.share &&
         navigator.canShare &&
         navigator.canShare({ files: [pdfFile] })
       ) {
-        try {
-          await navigator.share({
-            files: [pdfFile],
-            title: title
-          });
-
-          setStatus("PDF preparado para salvar ou compartilhar.");
-
-          return "O PDF está pronto. Você pode salvá-lo no aplicativo Arquivos ou compartilhá-lo.";
-        } catch (shareError) {
-          if (shareError.name === "AbortError") {
-            setStatus("Compartilhamento cancelado.");
-
-            return "O compartilhamento foi cancelado. O documento continua disponível para gerar novamente.";
-          }
-
-          throw shareError;
-        }
+        await navigator.share({
+          files: [pdfFile],
+          title: currentFilename || "Documento VARJÃO"
+        });
+      } else {
+        const link = document.createElement("a");
+        link.href = fileUrl;
+        link.download = pdfFile.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
 
-      const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = "varjao-documento.pdf";
-      link.style.display = "none";
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-
-      setStatus("PDF gerado. Verifique os downloads.");
-
-      return "PDF gerado. Verifique os downloads do navegador.";
-
+      setStatus("PDF preparado.");
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+    } catch (error) {
+      if (error.name === "AbortError") {
+        setStatus("Compartilhamento cancelado.");
+      } else {
+        showError(error.message || "Erro ao exportar PDF.");
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  // BOTÃO DE EDIÇÃO MANUAL
-  documentEdit.addEventListener("click", async () => {
+  function makePdfFilename(filename) {
+    let name = String(filename || "documento")
+      .replace(/\.[^.]+$/, "")
+      .replace(/[\\/:*?"<>|]/g, "")
+      .trim();
+
+    if (!name) name = "documento";
+
+    return `${name}.pdf`;
+  }
+
+  function closeDocument() {
     if (busy) return;
 
-    const instruction = documentInstruction.value.trim();
+    hidePanel();
+    setStatus("");
+  }
 
-    if (!instruction) {
-      setStatus("Escreva o que deseja alterar.");
-      documentInstruction.focus();
-      return;
-    }
+  if (documentBtn && documentInput) {
+    documentBtn.addEventListener("click", () => {
+      if (!busy) documentInput.click();
+    });
+  }
 
-    try {
-      const result = await applyDocumentInstruction(instruction);
-      chatMessage("assistant", result);
+  if (documentInput) {
+    documentInput.addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
 
-    } catch (error) {
-      console.error("ERRO NA EDIÇÃO:", error);
-      setStatus(error.message || "Não foi possível editar.");
-    }
+      if (file) {
+        await uploadDocument(file);
+      }
+
+      event.target.value = "";
+    });
+  }
+
+  if (documentEdit) {
+    documentEdit.addEventListener("click", editDocument);
+  }
+
+  if (documentExport) {
+    documentExport.addEventListener("click", exportDocument);
+  }
+
+  const closeButtons = [
+    document.getElementById("documentClose"),
+    document.getElementById("closeDocument"),
+    document.getElementById("documentCloseBtn")
+  ].filter(Boolean);
+
+  closeButtons.forEach((button) => {
+    button.addEventListener("click", closeDocument);
   });
 
-  // BOTÃO DE EXPORTAÇÃO
-  documentExport.addEventListener("click", async () => {
-    if (busy) return;
-
-    try {
-      const result = await exportCurrentDocument();
-      chatMessage("assistant", result);
-
-    } catch (error) {
-      console.error("ERRO AO EXPORTAR:", error);
-      setStatus(error.message || "Falha ao gerar o PDF.");
-    }
-  });
-
-  // IDENTIFICAR PEDIDOS DE ALTERAÇÃO
-  function isDocumentEditRequest(text) {
-    return /\b(corrij\w*|revis\w*|melhor\w*|acrescent\w*|adicione\w*|inclu\w*|retir\w*|remov\w*|exclu\w*|substitu\w*|alter\w*|mud\w*|reorganiz\w*|reformul\w*|reescrev\w*|atualiz\w*|transform\w*|format\w*|ajust\w*|arrum\w*|traduz\w*|resum\w*|reduz\w*|aument\w*|insir\w*|coloc\w*|tir\w*|deix\w*|faç\w*|fac\w*|crie\w*|complete\w*|preench\w*|padroniz\w*|simplifi\w*|detalh\w*|organiz\w*)\b/i.test(text);
-  }
-
-  function isExportRequest(text) {
-    return /\b(gerar|gere|gera|exportar|exporte|exporta|baixar|baixe|salvar|salve)\b/i.test(text) &&
-      /\b(pdf|arquivo|documento)\b/i.test(text);
-  }
-
-  function isCloseDocumentRequest(text) {
-    return /\b(encerrar|desanexar|remover|descartar|finalizar)\b/i.test(text) &&
-      /\b(documento|arquivo)\b/i.test(text);
-  }
-
-  // CONECTAR OS PEDIDOS À CONVERSA E AO MICROFONE
-  const originalSendMessage = window.sendMessage;
-
-  if (typeof originalSendMessage === "function") {
-    window.sendMessage = async function(
-      text,
-      imageData = null,
-      speakResponse = false,
-      voiceAudio = null
-    ) {
-      const clean = String(text || "").trim();
-
-      if (
-        !clean ||
-        imageData ||
-        !hasDocument() ||
-        busy
-      ) {
-        return originalSendMessage.call(
-          this,
-          text,
-          imageData,
-          speakResponse,
-          voiceAudio
-        );
-      }
-
-      if (isCloseDocumentRequest(clean)) {
-        chatMessage("user", clean);
-
-        currentFilename = "";
-        originalContent = "";
-        documentContent.value = "";
-        documentInstruction.value = "";
-        documentFilename.textContent = "Nenhum documento selecionado.";
-
-        documentPanel.classList.remove("active");
-        setStatus("Documento encerrado.");
-
-        const answer =
-          "Certo. Encerrei o trabalho com esse documento. Podemos continuar nossa conversa normalmente.";
-
-        chatMessage("assistant", answer);
-        await speakIfNeeded(answer, speakResponse);
-        return;
-      }
-
-      if (isExportRequest(clean)) {
-        chatMessage("user", clean);
-
-        try {
-          const answer = await exportCurrentDocument();
-
-          chatMessage("assistant", answer);
-          await speakIfNeeded(answer, speakResponse);
-
-        } catch (error) {
-          const answer = "Não consegui gerar o PDF: " + error.message;
-
-          setStatus(answer);
-          chatMessage("assistant", answer);
-          await speakIfNeeded(answer, speakResponse);
-        }
-
-        return;
-      }
-
-      if (!isDocumentEditRequest(clean)) {
-        return originalSendMessage.call(
-          this,
-          text,
-          imageData,
-          speakResponse,
-          voiceAudio
-        );
-      }
-
-      chatMessage("user", clean);
-
-      try {
-        const answer = await applyDocumentInstruction(clean);
-
-        chatMessage("assistant", answer);
-        await speakIfNeeded(answer, speakResponse);
-
-      } catch (error) {
-        const answer =
-          "Tive um problema ao alterar o documento: " + error.message;
-
-        setStatus(answer);
-        chatMessage("assistant", answer);
-        await speakIfNeeded(answer, speakResponse);
-      }
-    };
-  } else {
-    console.error(
-      "Não foi possível conectar a edição à conversa do VARJÃO."
-    );
-  }
-
-  // ACESSO AO ESTADO DO DOCUMENTO
   window.VARJAO_DOCUMENTS = {
+    open: showPanel,
+    close: closeDocument,
+    upload: uploadDocument,
+    edit: editDocument,
+    export: exportDocument,
     hasDocument,
-    getFilename: () => currentFilename,
-    getContent: () => documentContent.value
+    getText: getDocumentText,
+    getFilename: () => currentFilename
   };
 
-  console.log(
-    "Módulo de documentos e edição por conversa carregado."
-  );
+  console.log("VARJÃO: módulo de documentos carregado.");
 })();
