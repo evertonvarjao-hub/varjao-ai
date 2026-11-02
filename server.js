@@ -1,4 +1,77 @@
+const express = require("express");
+const { EdgeTTS } = require("node-edge-tts");
+const fs = require("fs/promises");
+const os = require("os");
+const path = require("path");
+const crypto = require("crypto");
+const multer = require("multer");
+const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const XLSX = require("xlsx");
+const PDFDocument = require("pdfkit");
 
+const app = express();
+
+app.use(express.json({ limit: "8mb" }));
+
+// PASTAS DO PROJETO
+const publicFolder = path.join(__dirname, "public");
+const rootFolder = __dirname;
+
+// PÁGINA INICIAL DO VARJÃO
+app.get("/", async (_req, res) => {
+  const publicIndex = path.join(publicFolder, "index.html");
+  const rootIndex = path.join(rootFolder, "index.html");
+
+  try {
+    await fs.access(publicIndex);
+    return res.sendFile(publicIndex);
+  } catch (error) {
+    // Tenta localizar na raiz
+  }
+
+  try {
+    await fs.access(rootIndex);
+    return res.sendFile(rootIndex);
+  } catch (error) {
+    return res.status(404).send(
+      "Página inicial não encontrada. Verifique se index.html está na raiz ou dentro de public."
+    );
+  }
+});
+
+// ARQUIVOS DA PASTA PUBLIC
+app.use(express.static(publicFolder));
+
+// ARQUIVOS DA INTERFACE QUE PODEM ESTAR NA RAIZ
+const frontendFiles = [
+  "app.js",
+  "style.css",
+  "sw.js",
+  "manifest.json",
+  "favicon.ico"
+];
+
+for (const filename of frontendFiles) {
+  app.get("/" + filename, async (_req, res) => {
+    const publicFile = path.join(publicFolder, filename);
+    const rootFile = path.join(rootFolder, filename);
+
+    try {
+      await fs.access(publicFile);
+      return res.sendFile(publicFile);
+    } catch (error) {
+      // Tenta localizar na raiz
+    }
+
+    try {
+      await fs.access(rootFile);
+      return res.sendFile(rootFile);
+    } catch (error) {
+      return res.status(404).send("Arquivo não encontrado.");
+    }
+  });
+}
 const express = require("express");
 const { EdgeTTS } = require("node-edge-tts");
 const fs = require("fs/promises");
