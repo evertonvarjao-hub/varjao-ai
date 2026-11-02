@@ -1,5 +1,6 @@
 
 
+
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -9,13 +10,53 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VARJÃO AI">
-  <meta name="description" content="VARJÃO AI — Seu assistente pessoal inteligente.">
+  <meta name="description" content="VARJÃO AI — Assistente pessoal inteligente.">
 
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="stylesheet" href="/style.css">
 
   <title>VARJÃO AI</title>
+
+  <style>
+    /* Elementos internos mantidos para compatibilidade com o app.js */
+    .internal-state {
+      display: none !important;
+    }
+
+    .topbar .brand-mark small {
+      display: none;
+    }
+
+    .topbar .status {
+      gap: 0;
+    }
+
+    .topbar .status-light {
+      width: 9px;
+      height: 9px;
+      flex: 0 0 9px;
+    }
+
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      padding-top: 30px;
+      padding-bottom: 20px;
+    }
+
+    .hero-copy {
+      display: none !important;
+    }
+
+    .presence-panel {
+      margin-top: 0;
+    }
+
+    footer {
+      display: none;
+    }
+  </style>
 </head>
 
 <body>
@@ -23,6 +64,7 @@
 
     <!-- CABEÇALHO -->
     <header class="topbar">
+
       <a class="brand-mark" href="/" aria-label="VARJÃO AI início">
         <span class="crown">♛</span>
         <span>
@@ -31,15 +73,16 @@
         </span>
       </a>
 
-      <div class="status" id="systemStatus">
+      <div class="status" id="systemStatus" aria-label="Online">
         <span class="status-light"></span>
-        <span id="statusText">SISTEMA PRONTO</span>
+        <span id="statusText" class="internal-state">ONLINE</span>
       </div>
+
     </header>
 
     <main>
 
-      <!-- PRESENÇA DO VARJÃO -->
+      <!-- AVATAR -->
       <section class="hero" id="heroSection">
 
         <div class="hero-photo-wrap" id="presenceCore">
@@ -54,7 +97,7 @@
           <img
             class="hero-photo"
             src="/avatar.jpg"
-            alt="Foto do avatar do VARJÃO"
+            alt="Avatar do VARJÃO"
           >
 
           <div class="presence-indicator" id="presenceIndicator">
@@ -63,18 +106,17 @@
 
         </div>
 
-        <div class="hero-copy">
+        <!-- Elementos internos preservados para o app.js -->
+        <div class="hero-copy internal-state">
 
           <div class="eyebrow">
             <span class="eyebrow-dot"></span>
             INTELIGÊNCIA ARTIFICIAL PESSOAL
           </div>
 
-          <h1 id="heroGreeting">À sua disposição.</h1>
+          <h1 id="heroGreeting">VARJÃO</h1>
 
-          <p id="heroDescription">
-            Estou aqui. Vamos conversar.
-          </p>
+          <p id="heroDescription">Online.</p>
 
           <div class="signature">
             VARJÃO <span>AI</span>
@@ -82,10 +124,11 @@
 
           <div class="personality-status" id="personalityStatus">
             <span class="personality-dot"></span>
-            <span id="personalityText">PRESENTE E ATENTO</span>
+            <span id="personalityText">ONLINE</span>
           </div>
 
         </div>
+
       </section>
 
       <!-- ESTADO DE INTERAÇÃO -->
@@ -110,8 +153,8 @@
           <span></span>
         </div>
 
-        <div class="presence-caption" id="presenceCaption">
-          Pronto para ouvir você.
+        <div class="presence-caption internal-state" id="presenceCaption">
+          Online.
         </div>
 
       </section>
@@ -120,6 +163,7 @@
       <section class="chat-panel">
 
         <div class="chat-head">
+
           <div class="chat-title">
             <span class="chat-title-indicator"></span>
             <span>CONVERSA</span>
@@ -128,6 +172,7 @@
           <button id="clearBtn" class="text-btn" type="button">
             LIMPAR
           </button>
+
         </div>
 
         <div
@@ -207,11 +252,6 @@
       </section>
 
     </main>
-
-    <!-- RODAPÉ -->
-    <footer>
-      VARJÃO AI <span>•</span> PERSONAL ASSISTANT
-    </footer>
 
   </div>
 
