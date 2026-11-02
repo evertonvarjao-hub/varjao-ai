@@ -785,3 +785,71 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+/* =====================================
+   CORREÇÃO DEFINITIVA DA ROLAGEM
+   SAFARI / IPHONE
+===================================== */
+
+/* Organiza a conversa em quatro áreas */
+.chat-panel {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Cabeçalho permanece fixo */
+.chat-head {
+  grid-row: 1;
+  min-height: 0;
+}
+
+/* Histórico ocupa somente o espaço livre */
+#messages.messages {
+  grid-row: 2;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Campo de digitação fica abaixo do histórico */
+.chat-panel > .composer {
+  grid-row: 3;
+  position: relative !important;
+  z-index: 2 !important;
+  margin: 0 !important;
+}
+
+/* Botões ficam abaixo do campo */
+.chat-panel > .controls {
+  grid-row: 4;
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+/* Aviso fica na última linha */
+.chat-panel > .privacy-note {
+  grid-row: 5;
+}
+
+/* Não permite que as mensagens sejam comprimidas */
+#messages .message {
+  flex-shrink: 0 !important;
+}
+
+/* Mantém a rolagem independente */
+#messages,
+#messages * {
+  overscroll-behavior: contain;
+}
