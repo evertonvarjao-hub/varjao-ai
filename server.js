@@ -44,12 +44,19 @@ app.get("/", async (_req, res) => {
 app.use(express.static(publicFolder));
 
 // ARQUIVOS DA INTERFACE QUE PODEM ESTAR NA RAIZ
+
+// ARQUIVOS DA INTERFACE QUE PODEM ESTAR NA RAIZ
 const frontendFiles = [
   "app.js",
+  "documents.js",
+  "history.js",
   "style.css",
   "sw.js",
   "manifest.json",
-  "favicon.ico"
+  "manifest.webmanifest",
+  "favicon.ico",
+  "icon.svg",
+  "avatar.jpg"
 ];
 
 for (const filename of frontendFiles) {
@@ -61,14 +68,16 @@ for (const filename of frontendFiles) {
       await fs.access(publicFile);
       return res.sendFile(publicFile);
     } catch (error) {
-      // Tenta localizar na raiz
+      // Se não estiver em public, procura na raiz.
     }
 
     try {
       await fs.access(rootFile);
       return res.sendFile(rootFile);
     } catch (error) {
-      return res.status(404).send("Arquivo não encontrado.");
+      return res.status(404).send(
+        "Arquivo não encontrado: " + filename
+      );
     }
   });
 }
