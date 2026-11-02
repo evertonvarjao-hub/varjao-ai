@@ -853,3 +853,99 @@ footer {
 #messages * {
   overscroll-behavior: contain;
 }
+/* =====================================
+   VARJÃO — OCUPAR A TELA DO IPHONE
+===================================== */
+
+html,
+body {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-shell {
+  width: 100% !important;
+  max-width: 760px !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  margin: 0 auto !important;
+  padding-top: max(env(safe-area-inset-top), 12px) !important;
+  padding-bottom: max(env(safe-area-inset-bottom), 10px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.topbar {
+  flex: 0 0 58px !important;
+}
+
+main {
+  flex: 1 1 0% !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.hero {
+  flex: 0 0 auto !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.hero-photo-wrap {
+  width: 120px !important;
+}
+
+.presence-panel {
+  flex: 0 0 auto !important;
+  margin-bottom: 10px !important;
+}
+
+/* A conversa ocupa todo o espaço que sobrar */
+.chat-panel {
+  flex: 1 1 0% !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
+  overflow: hidden !important;
+}
+
+/* Histórico independente */
+#messages {
+  min-height: 0 !important;
+  height: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Controles sempre visíveis */
+.composer,
+.controls,
+.privacy-note {
+  flex-shrink: 0 !important;
+}
+
+@media (max-height: 750px) {
+  .hero {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+  }
+
+  .hero-photo-wrap {
+    width: 95px !important;
+  }
+
+  .presence-panel {
+    margin-bottom: 6px !important;
+  }
+}
