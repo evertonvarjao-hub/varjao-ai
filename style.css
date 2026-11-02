@@ -703,3 +703,38 @@ footer {
   visibility: visible !important;
   opacity: 1;
 }
+
+/* POSIÇÃO DEFINITIVA DO INDICADOR ONLINE */
+
+/* Remove a indicação sobre a fotografia */
+.hero-photo-wrap .presence-indicator {
+  display: none !important;
+}
+
+/* Coloca a bolinha ao lado de VARJÃO */
+.topbar {
+  justify-content: flex-start !important;
+  gap: 12px;
+}
+
+.topbar .status {
+  display: flex !important;
+  align-items: center;
+  margin-left: 0 !important;
+  gap: 0 !important;
+  font-size: 0 !important;
+}
+
+.topbar .status > *:not(.status-light) {
+  display: none !important;
+}
+
+.topbar .status-light {
+  display: block !important;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  background: #42cf80;
+  border-radius: 50%;
+  box-shadow: 0 0 9px rgba(66, 207, 128, .4);
+}
