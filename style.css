@@ -776,3 +776,171 @@ footer {
   background: #42cf80 !important;
   box-shadow: 0 0 9px rgba(66, 207, 128, .4) !important;
 }
+
+/* =====================================
+   AJUSTE FINAL — VARJÃO
+   CABEÇALHO, CONVERSA E BOTÕES
+===================================== */
+
+/* Cabeçalho e bolinha verde */
+.topbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 11px !important;
+}
+
+.topbar .brand-mark {
+  flex: 0 0 auto;
+}
+
+.topbar .status {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  font-size: 0 !important;
+}
+
+.topbar .status-light {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 9px !important;
+  height: 9px !important;
+  min-width: 9px !important;
+  flex: 0 0 9px !important;
+  border-radius: 50% !important;
+  background: #42cf80 !important;
+  box-shadow: 0 0 10px rgba(66, 207, 128, .5) !important;
+}
+
+.topbar .status #statusText,
+.topbar .status > *:not(.status-light) {
+  display: none !important;
+}
+
+/* Remove a indicação sobre a fotografia */
+.hero-photo-wrap .presence-indicator {
+  display: none !important;
+}
+
+/* Caixa de conversa */
+.chat-panel {
+  border: 1px solid rgba(217, 173, 85, .22) !important;
+  border-radius: 17px !important;
+  padding: 12px !important;
+  background: linear-gradient(145deg, #15130f, #0d0c0a) !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .2) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Histórico com rolagem própria */
+.messages {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding: 13px 4px !important;
+  gap: 13px !important;
+}
+
+/* Balões de conversa */
+.message-body {
+  padding: 11px 13px !important;
+  border-radius: 5px 14px 14px 14px !important;
+  line-height: 1.55 !important;
+}
+
+.message.user .message-body {
+  border-radius: 14px 5px 14px 14px !important;
+}
+
+/* Campo de digitação */
+.composer {
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  min-height: 51px !important;
+  padding: 4px 5px 4px 10px !important;
+  border-radius: 15px !important;
+  background: #090908 !important;
+  border-color: rgba(217, 173, 85, .35) !important;
+}
+
+.composer input {
+  min-height: 42px !important;
+  padding: 8px 5px !important;
+}
+
+.send-btn {
+  width: 41px !important;
+  height: 41px !important;
+  min-width: 41px !important;
+  border-radius: 12px !important;
+}
+
+/* Botões inferiores */
+.controls {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-top: 10px !important;
+}
+
+.mic-btn {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 190px !important;
+  min-height: 45px !important;
+  border-radius: 14px !important;
+  letter-spacing: 1.3px !important;
+}
+
+.add-btn {
+  flex: 0 0 45px !important;
+  width: 45px !important;
+  height: 45px !important;
+  border-radius: 14px !important;
+  font-size: 25px !important;
+}
+
+/* Nota inferior mais discreta */
+.privacy-note {
+  flex: 0 0 auto !important;
+  margin: 7px 0 2px !important;
+  font-size: 8px !important;
+  opacity: .65;
+}
+
+/* Evita que os elementos ultrapassem a tela */
+.app-shell,
+main,
+.chat-panel {
+  min-height: 0 !important;
+}
+
+main {
+  overflow: hidden !important;
+}
+
+@media (max-width: 390px) {
+  .app-shell {
+    padding-left: 11px !important;
+    padding-right: 11px !important;
+  }
+
+  .chat-panel {
+    padding: 9px !important;
+  }
+
+  .mic-btn {
+    max-width: 175px !important;
+  }
+}
