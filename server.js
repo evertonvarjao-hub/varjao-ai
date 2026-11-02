@@ -672,6 +672,13 @@ async function requestGroq(payload, apiKey) {
   }
 }
 
+// LIGAR O MÓDULO DE EDIÇÃO INTELIGENTE DE DOCUMENTOS
+require("./document-ai")(
+  app,
+  requestGroq,
+  VARJAO_PERSONALITY
+);
+
 // CONVERSA COM A INTELIGÊNCIA ARTIFICIAL
 app.post("/api/chat", async (req, res) => {
   try {
