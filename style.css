@@ -1,7 +1,4 @@
 
-
-
-
 :root {
   color-scheme: dark;
   --gold: #d9ad55;
@@ -21,17 +18,17 @@
 
 html {
   width: 100%;
-  min-height: 100%;
-  overflow-x: hidden;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
-  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  min-height: 100svh;
   width: 100%;
-  overflow-x: hidden;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
@@ -51,15 +48,18 @@ button {
 
 .app-shell {
   width: min(100%, 760px);
-  min-height: 100svh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   margin: auto;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
   display: flex;
   flex-direction: column;
-  overflow-x: clip;
+  overflow: hidden;
 }
 
 .topbar {
+  flex: 0 0 58px;
   min-height: 58px;
   display: flex;
   align-items: center;
@@ -88,7 +88,7 @@ button {
 }
 
 .brand-mark small {
-  display: none;
+  display: none !important;
 }
 
 .status {
@@ -96,6 +96,12 @@ button {
   align-items: center;
   justify-content: center;
   gap: 0;
+}
+
+/* SOMENTE A BOLINHA VERDE */
+.status #statusText,
+.status .internal-state {
+  display: none !important;
 }
 
 .status-light {
@@ -109,32 +115,33 @@ button {
 }
 
 @keyframes statusPulse {
-  50% {
-    opacity: .45;
-  }
+  50% { opacity: .45; }
 }
 
+/* ESTRUTURA PRINCIPAL */
 main {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-/* APRESENTAÇÃO */
-
+/* FOTO */
 .hero {
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   align-items: center;
   gap: 0 !important;
-  padding: 17px 8px 12px !important;
+  padding: 13px 8px 10px !important;
 }
 
 .hero-photo-wrap {
   position: relative;
-  width: 132px;
+  width: 120px;
   max-width: 100%;
   aspect-ratio: 1;
   display: grid;
@@ -229,11 +236,11 @@ main {
 }
 
 /* PAINEL DE VOZ */
-
 .presence-panel {
-  margin: 0 0 13px !important;
-  padding: 8px 12px;
-  min-height: 47px;
+  flex: 0 0 auto;
+  margin: 0 0 10px !important;
+  padding: 7px 12px;
+  min-height: 43px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: rgba(17, 16, 13, .68);
@@ -254,11 +261,10 @@ main {
 .presence-label-icon {
   color: var(--gold);
   font-size: 11px;
-  text-shadow: none;
 }
 
 .voice-visualizer {
-  height: 19px;
+  height: 17px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -271,40 +277,28 @@ main {
   height: 4px;
   border-radius: 5px;
   background: var(--gold);
-  box-shadow: none;
   transition: height .2s;
 }
 
 .voice-visualizer span:nth-child(2),
-.voice-visualizer span:nth-child(10) {
-  height: 7px;
-}
+.voice-visualizer span:nth-child(10) { height: 7px; }
 
 .voice-visualizer span:nth-child(3),
-.voice-visualizer span:nth-child(9) {
-  height: 10px;
-}
+.voice-visualizer span:nth-child(9) { height: 10px; }
 
 .voice-visualizer span:nth-child(4),
-.voice-visualizer span:nth-child(8) {
-  height: 13px;
-}
+.voice-visualizer span:nth-child(8) { height: 13px; }
 
 .voice-visualizer span:nth-child(5),
-.voice-visualizer span:nth-child(7) {
-  height: 16px;
-}
+.voice-visualizer span:nth-child(7) { height: 15px; }
 
-.voice-visualizer span:nth-child(6) {
-  height: 19px;
-}
+.voice-visualizer span:nth-child(6) { height: 17px; }
 
 .presence-caption {
-  display: none;
+  display: none !important;
 }
 
 /* ESTADOS DA PRESENÇA */
-
 #presenceCore.listening .hero-photo,
 #presenceCore.speaking .hero-photo,
 #presenceCore.thinking .hero-photo {
@@ -352,12 +346,8 @@ main {
 }
 
 @keyframes voiceMove {
-  from {
-    transform: scaleY(.35);
-  }
-  to {
-    transform: scaleY(1.35);
-  }
+  from { transform: scaleY(.35); }
+  to { transform: scaleY(1.35); }
 }
 
 #presencePanel.thinking .voice-visualizer span {
@@ -375,28 +365,28 @@ main {
   }
 }
 
-/* CONVERSA */
-
+/* CONVERSA: ALTURA CONTROLADA */
 .chat-panel {
-  flex: 1;
-  min-height: 280px;
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 15px;
-  padding: 11px;
+  padding: 10px;
   background: rgba(15, 14, 12, .94);
-  box-shadow: none;
 }
 
 .chat-head {
+  flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
   color: var(--gold-soft);
   font-size: 9px;
   letter-spacing: 1.6px;
-  padding: 2px 2px 10px;
+  padding: 2px 2px 9px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -426,18 +416,22 @@ main {
   opacity: .5;
 }
 
+/* A ROLAGEM ACONTECE SOMENTE AQUI */
 .messages {
-  flex: 1;
-  min-height: 150px;
-  height: clamp(170px, 28vh, 270px);
-  overflow: auto;
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   padding: 12px 2px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   scrollbar-width: thin;
   scrollbar-color: #66512e transparent;
-  overscroll-behavior: contain;
 }
 
 .message {
@@ -445,6 +439,7 @@ main {
   align-items: flex-start;
   gap: 8px;
   max-width: 96%;
+  flex: 0 0 auto;
   font-size: 13px;
   line-height: 1.55;
   animation: messageEnter .25s ease-out;
@@ -521,8 +516,8 @@ main {
 }
 
 /* CAMPO DE MENSAGEM */
-
 .composer {
+  flex: 0 0 auto;
   display: flex;
   gap: 6px;
   border: 1px solid rgba(217, 173, 85, .36);
@@ -558,7 +553,6 @@ main {
   background: var(--red);
   color: #fff;
   font-size: 19px;
-  box-shadow: none;
   transition: transform .2s, background .2s;
 }
 
@@ -568,18 +562,18 @@ main {
 }
 
 /* CONTROLES */
-
 .controls {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  margin-top: 11px;
+  margin-top: 10px;
 }
 
 .mic-btn {
   min-width: 142px;
-  min-height: 45px;
+  min-height: 43px;
   border: 1px solid rgba(217, 173, 85, .55);
   background: #17140e;
   color: var(--gold-soft);
@@ -588,7 +582,6 @@ main {
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 1.5px;
-  box-shadow: none;
   transition: all .25s;
 }
 
@@ -604,9 +597,7 @@ main {
 }
 
 @keyframes micPulse {
-  50% {
-    border-color: rgba(232, 75, 66, .4);
-  }
+  50% { border-color: rgba(232, 75, 66, .4); }
 }
 
 .mic-symbol {
@@ -615,8 +606,8 @@ main {
 }
 
 .add-btn {
-  width: 45px;
-  height: 45px;
+  width: 43px;
+  height: 43px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(217, 173, 85, .55);
@@ -624,10 +615,7 @@ main {
   background: #17140e;
   color: var(--gold);
   font-size: 27px;
-  font-weight: 400;
   line-height: 1;
-  cursor: pointer;
-  box-shadow: none;
   transition: transform .2s;
 }
 
@@ -636,19 +624,19 @@ main {
 }
 
 .privacy-note {
+  flex: 0 0 auto;
   text-align: center;
   color: #817765;
   font-size: 8px;
   line-height: 1.4;
-  margin: 9px 0 0;
+  margin: 7px 0 0;
 }
 
 footer {
-  display: none;
+  display: none !important;
 }
 
-/* IPHONES MENORES */
-
+/* TELAS PEQUENAS */
 @media (max-width: 390px) {
   .app-shell {
     padding-left: 12px;
@@ -656,25 +644,20 @@ footer {
   }
 
   .hero {
-    padding-top: 13px !important;
-    padding-bottom: 10px !important;
+    padding-top: 10px !important;
+    padding-bottom: 8px !important;
   }
 
   .hero-photo-wrap {
-    width: 120px;
+    width: 108px;
   }
 
   .presence-panel {
-    margin-bottom: 10px !important;
+    margin-bottom: 8px !important;
   }
 
   .chat-panel {
-    padding: 9px;
-  }
-
-  .messages {
-    min-height: 135px;
-    height: clamp(160px, 27vh, 230px);
+    padding: 8px;
   }
 
   .mic-btn {
@@ -683,34 +666,19 @@ footer {
 }
 
 /* TELAS MAIORES */
-
 @media (min-width: 650px) {
-  .app-shell {
-    padding-left: 22px;
-    padding-right: 22px;
-  }
-
   .hero {
     grid-template-columns: minmax(0, 1fr) !important;
-    padding-top: 20px !important;
-    padding-bottom: 13px !important;
+    padding-top: 15px !important;
+    padding-bottom: 10px !important;
   }
 
   .hero-photo-wrap {
-    width: 140px;
-  }
-
-  .chat-panel {
-    min-height: 340px;
-  }
-
-  .messages {
-    height: 260px;
+    width: 125px;
   }
 }
 
 /* ACESSIBILIDADE */
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
