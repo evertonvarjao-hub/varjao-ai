@@ -1,6 +1,4 @@
 
-
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -19,7 +17,6 @@
   <title>VARJÃO AI</title>
 
   <style>
-    /* Elementos internos mantidos para compatibilidade com o app.js */
     .internal-state {
       display: none !important;
     }
@@ -56,15 +53,106 @@
     footer {
       display: none;
     }
+
+    /* ÁREA DE DOCUMENTOS */
+    .document-panel {
+      display: none;
+      margin: 14px 0;
+      padding: 14px;
+      border: 1px solid rgba(217, 173, 85, .45);
+      border-radius: 12px;
+      background: rgba(20, 16, 10, .96);
+      color: #f5e8cb;
+      text-align: left;
+    }
+
+    .document-panel.active {
+      display: block;
+    }
+
+    .document-heading {
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #e8c477;
+    }
+
+    .document-filename {
+      font-size: 13px;
+      opacity: .85;
+      overflow-wrap: anywhere;
+      margin-bottom: 10px;
+    }
+
+    .document-panel textarea {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(217, 173, 85, .35);
+      border-radius: 8px;
+      background: #090806;
+      color: #fff;
+      padding: 11px;
+      font: inherit;
+      font-size: 14px;
+      resize: vertical;
+      margin: 8px 0;
+    }
+
+    #documentContent {
+      min-height: 150px;
+    }
+
+    #documentInstruction {
+      min-height: 75px;
+    }
+
+    .document-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .document-actions button {
+      flex: 1 1 130px;
+      min-height: 42px;
+      border: 1px solid rgba(217, 173, 85, .55);
+      border-radius: 8px;
+      background: #211a0e;
+      color: #f5d58d;
+      font-weight: 700;
+      padding: 9px;
+    }
+
+    .document-actions button:disabled {
+      opacity: .5;
+    }
+
+    .document-status {
+      font-size: 12px;
+      margin-top: 10px;
+      color: #e8c477;
+      min-height: 18px;
+    }
+
+    .document-close {
+      float: right;
+      border: 0;
+      background: transparent;
+      color: #e8c477;
+      font-size: 20px;
+    }
+
+    .document-button {
+      cursor: pointer;
+    }
   </style>
 </head>
 
 <body>
   <div class="app-shell">
 
-    <!-- CABEÇALHO -->
     <header class="topbar">
-
       <a class="brand-mark" href="/" aria-label="VARJÃO AI início">
         <span class="crown">♛</span>
         <span>
@@ -77,21 +165,15 @@
         <span class="status-light"></span>
         <span id="statusText" class="internal-state">ONLINE</span>
       </div>
-
     </header>
 
     <main>
 
-      <!-- AVATAR -->
       <section class="hero" id="heroSection">
-
         <div class="hero-photo-wrap" id="presenceCore">
-
           <div class="hero-orbit"></div>
-
           <div class="presence-ring presence-ring-one"></div>
           <div class="presence-ring presence-ring-two"></div>
-
           <div class="presence-particles"></div>
 
           <img
@@ -103,67 +185,44 @@
           <div class="presence-indicator" id="presenceIndicator">
             <span></span>
           </div>
-
         </div>
 
-        <!-- Elementos internos preservados para o app.js -->
         <div class="hero-copy internal-state">
-
           <div class="eyebrow">
             <span class="eyebrow-dot"></span>
             INTELIGÊNCIA ARTIFICIAL PESSOAL
           </div>
-
           <h1 id="heroGreeting">VARJÃO</h1>
-
           <p id="heroDescription">Online.</p>
-
-          <div class="signature">
-            VARJÃO <span>AI</span>
-          </div>
-
+          <div class="signature">VARJÃO <span>AI</span></div>
           <div class="personality-status" id="personalityStatus">
             <span class="personality-dot"></span>
             <span id="personalityText">ONLINE</span>
           </div>
-
         </div>
-
       </section>
 
-      <!-- ESTADO DE INTERAÇÃO -->
       <section class="presence-panel" id="presencePanel">
-
         <div class="presence-label">
           <span class="presence-label-icon">◉</span>
           <span id="listenState">AGUARDANDO COMANDO</span>
         </div>
 
         <div class="voice-visualizer" id="voiceVisualizer">
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
-          <span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span><span></span>
+          <span></span><span></span>
         </div>
 
         <div class="presence-caption internal-state" id="presenceCaption">
           Online.
         </div>
-
       </section>
 
-      <!-- CONVERSA -->
       <section class="chat-panel">
 
         <div class="chat-head">
-
           <div class="chat-title">
             <span class="chat-title-indicator"></span>
             <span>CONVERSA</span>
@@ -172,7 +231,6 @@
           <button id="clearBtn" class="text-btn" type="button">
             LIMPAR
           </button>
-
         </div>
 
         <div
@@ -181,27 +239,16 @@
           aria-live="polite"
           aria-relevant="additions text"
         >
-
           <div class="message assistant">
-
-            <img
-              class="message-avatar"
-              src="/avatar.jpg"
-              alt=""
-            >
-
+            <img class="message-avatar" src="/avatar.jpg" alt="">
             <div class="message-body">
               <span class="speaker">VARJÃO</span>
               <p>Olá! Estou pronto. Como posso ajudar?</p>
             </div>
-
           </div>
-
         </div>
 
-        <!-- CAMPO DE MENSAGEM -->
         <form id="chatForm" class="composer">
-
           <input
             id="prompt"
             type="text"
@@ -210,17 +257,11 @@
             aria-label="Mensagem"
           >
 
-          <button
-            class="send-btn"
-            type="submit"
-            aria-label="Enviar"
-          >
+          <button class="send-btn" type="submit" aria-label="Enviar">
             ➤
           </button>
-
         </form>
 
-        <!-- CONTROLES -->
         <div class="controls">
 
           <button id="micBtn" class="mic-btn" type="button">
@@ -228,11 +269,7 @@
             FALAR
           </button>
 
-          <label
-            for="imageInput"
-            class="add-btn"
-            aria-label="Adicionar foto"
-          >
+          <label for="imageInput" class="add-btn" aria-label="Adicionar foto">
             +
           </label>
 
@@ -243,7 +280,71 @@
             hidden
           >
 
+          <button
+            id="documentBtn"
+            class="add-btn document-button"
+            type="button"
+            aria-label="Adicionar documento"
+            title="Adicionar documento"
+          >
+            📄
+          </button>
+
+          <input
+            id="documentInput"
+            type="file"
+            accept=".pdf,.docx,.txt,.xlsx"
+            hidden
+          >
         </div>
+
+        <section id="documentPanel" class="document-panel">
+
+          <button
+            id="documentClose"
+            class="document-close"
+            type="button"
+            aria-label="Fechar documentos"
+          >
+            ×
+          </button>
+
+          <div class="document-heading">
+            DOCUMENTO DO VARJÃO
+          </div>
+
+          <div id="documentFilename" class="document-filename">
+            Nenhum documento selecionado.
+          </div>
+
+          <label for="documentContent">Conteúdo do documento</label>
+          <textarea
+            id="documentContent"
+            placeholder="O conteúdo extraído aparecerá aqui..."
+          ></textarea>
+
+          <label for="documentInstruction">O que deseja que o VARJÃO faça?</label>
+          <textarea
+            id="documentInstruction"
+            placeholder="Ex.: Corrija os erros, melhore a escrita e preserve todas as informações."
+          ></textarea>
+
+          <div class="document-actions">
+            <button id="documentEdit" type="button">
+              ✨ APLICAR EDIÇÃO
+            </button>
+
+            <button id="documentExport" type="button">
+              ↓ GERAR PDF
+            </button>
+          </div>
+
+          <div
+            id="documentStatus"
+            class="document-status"
+            aria-live="polite"
+          ></div>
+        </section>
 
         <p class="privacy-note">
           Sua chave de IA fica no servidor, nunca neste iPhone.
@@ -252,10 +353,10 @@
       </section>
 
     </main>
-
   </div>
 
   <script src="/app.js"></script>
+  <script src="/documents.js"></script>
 
 </body>
 </html>
