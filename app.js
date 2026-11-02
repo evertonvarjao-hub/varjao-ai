@@ -1,3 +1,4 @@
+
 const form = document.getElementById("chatForm");
 const promptInput = document.getElementById("prompt");
 const messagesEl = document.getElementById("messages");
@@ -5,6 +6,163 @@ const micBtn = document.getElementById("micBtn");
 const listenState = document.getElementById("listenState");
 const statusText = document.getElementById("statusText");
 const imageInput = document.getElementById("imageInput");
+
+// ELEMENTOS DA PRESENÇA E PERSONALIDADE
+const presenceCore = document.getElementById("presenceCore");
+const presencePanel = document.getElementById("presencePanel");
+const heroGreeting = document.getElementById("heroGreeting");
+const heroDescription = document.getElementById("heroDescription");
+const personalityStatus = document.getElementById("personalityStatus");
+const personalityText = document.getElementById("personalityText");
+const presenceCaption = document.getElementById("presenceCaption");
+const presenceIndicator = document.getElementById("presenceIndicator");
+const voiceVisualizer = document.getElementById("voiceVisualizer");
+const systemStatus = document.getElementById("systemStatus");
+
+let currentPresence = "idle";
+
+// PERSONALIDADE VISUAL
+const presenceMessages = {
+  idle: {
+    greeting: "À sua disposição.",
+    description: "Sua presença digital. Sua inteligência pessoal.",
+    status: "PRESENTE",
+    personality: "Estou por aqui. Pode falar comigo.",
+    caption: "Aguardando você.",
+    listen: "AGUARDANDO COMANDO"
+  },
+
+  listening: {
+    greeting: "Estou ouvindo.",
+    description: "Pode falar. Estou prestando atenção.",
+    status: "OUVINDO",
+    personality: "Sua voz está chegando até mim.",
+    caption: "Estou acompanhando sua fala.",
+    listen: "ESTOU OUVINDO"
+  },
+
+  thinking: {
+    greeting: "Deixe comigo.",
+    description: "Estou organizando as ideias.",
+    status: "PROCESSANDO",
+    personality: "Estou pensando na melhor resposta.",
+    caption: "Analisando sua mensagem.",
+    listen: "PROCESSANDO"
+  },
+
+  speaking: {
+    greeting: "Vamos conversar.",
+    description: "Estou falando com você.",
+    status: "FALANDO",
+    personality: "Minha voz está ativa. Pode me interromper.",
+    caption: "Estou conversando com você.",
+    listen: "VARJÃO FALANDO"
+  },
+
+  error: {
+    greeting: "Tive um problema.",
+    description: "Estou verificando a conexão.",
+    status: "ATENÇÃO",
+    personality: "Algo não saiu como esperado. Vamos tentar novamente.",
+    caption: "Verifique a conexão.",
+    listen: "VERIFIQUE A CONEXÃO"
+  }
+};
+
+function setPresenceState(state, customText = "") {
+  const validStates = [
+    "idle",
+    "listening",
+    "thinking",
+    "speaking",
+    "error"
+  ];
+
+  if (!validStates.includes(state)) {
+    state = "idle";
+  }
+
+  currentPresence = state;
+
+  const data = presenceMessages[state];
+
+  if (presenceCore) {
+    presenceCore.classList.remove(
+      "idle",
+      "listening",
+      "thinking",
+      "speaking",
+      "error"
+    );
+
+    presenceCore.classList.add(state);
+  }
+
+  if (presencePanel) {
+    presencePanel.classList.remove(
+      "idle",
+      "listening",
+      "thinking",
+      "speaking",
+      "error"
+    );
+
+    presencePanel.classList.add(state);
+  }
+
+  if (heroGreeting) {
+    heroGreeting.textContent = data.greeting;
+  }
+
+  if (heroDescription) {
+    heroDescription.textContent = data.description;
+  }
+
+  if (personalityStatus) {
+    personalityStatus.textContent = data.status;
+  }
+
+  if (personalityText) {
+    personalityText.textContent = customText || data.personality;
+  }
+
+  if (presenceCaption) {
+    presenceCaption.textContent = data.caption;
+  }
+
+  if (presenceIndicator) {
+    presenceIndicator.textContent = data.status;
+  }
+
+  if (listenState) {
+    listenState.textContent = data.listen;
+  }
+
+  if (voiceVisualizer) {
+    voiceVisualizer.classList.toggle(
+      "active",
+      state === "speaking"
+    );
+
+    voiceVisualizer.classList.toggle(
+      "listening",
+      state === "listening"
+    );
+
+    voiceVisualizer.classList.toggle(
+      "thinking",
+      state === "thinking"
+    );
+  }
+
+  if (systemStatus && state !== "error") {
+    systemStatus.textContent =
+      state === "idle" ? "SISTEMA PRONTO" :
+      state === "listening" ? "MICROFONE ATIVO" :
+      state === "thinking" ? "INTELIGÊNCIA ATIVA" :
+      "VOZ ATIVA";
+  }
+}
 
 // MEMÓRIA LOCAL
 const HISTORY_KEY = "varjao_history_v2";
@@ -122,7 +280,6 @@ function containsSensitiveInformation(text) {
     /\bvida sexual\b/i,
     /\braça\b/i,
     /\braca\b/i,
-    /\betnia\b/i,
     /\betnia\b/i
   ];
 
@@ -217,10 +374,7 @@ function autoRememberInformation(text) {
 
   if (exists) return;
 
-  // Atualiza informações da mesma categoria quando necessário.
-  if (
-    ["Estudo", "Projeto", "Profissão"].includes(category.name)
-  ) {
+  if (["Estudo", "Projeto", "Profissão"].includes(category.name)) {
     memories = memories.filter(item => {
       const old = item.toLowerCase();
 
@@ -347,10 +501,7 @@ async function unlockAudio() {
 
 // INICIAR GRAVAÇÃO
 async function startVoiceRecording() {
-  if (
-    mediaRecorder &&
-    mediaRecorder.state === "recording"
-  ) {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
     return true;
   }
 
@@ -433,10 +584,7 @@ function stopMicrophoneTracks() {
 
 // FINALIZAR GRAVAÇÃO
 async function stopVoiceRecording() {
-  if (
-    !mediaRecorder ||
-    mediaRecorder.state === "inactive"
-  ) {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
     stopMicrophoneTracks();
     return null;
   }
@@ -540,11 +688,7 @@ async function analyzeVoiceAudio(voiceAudio) {
 
     const levels = [];
 
-    for (
-      let start = 0;
-      start < channel.length;
-      start += frameSize
-    ) {
+    for (let start = 0; start < channel.length; start += frameSize) {
       const end = Math.min(
         start + frameSize,
         channel.length
@@ -816,7 +960,10 @@ async function speak(text) {
   speaking = true;
   interruptedSpeech = false;
 
-  listenState.textContent = "VARJÃO FALANDO";
+  setPresenceState(
+    "speaking",
+    "Estou falando com você. Pode me interromper quando quiser."
+  );
 
   try {
     const response = await fetch("/api/tts", {
@@ -890,8 +1037,6 @@ async function speak(text) {
 
           source.start(0);
 
-          listenState.textContent = "VARJÃO FALANDO";
-
           if (voiceMode) {
             startListening(true);
           }
@@ -941,8 +1086,6 @@ async function speak(text) {
             return;
           }
 
-          listenState.textContent = "VARJÃO FALANDO";
-
           if (voiceMode) {
             startListening(true);
           }
@@ -954,7 +1097,11 @@ async function speak(text) {
   } catch (error) {
     if (playbackId === playbackSequence) {
       console.error("ERRO NA REPRODUÇÃO:", error);
-      listenState.textContent = "FALHA NA REPRODUÇÃO DA VOZ";
+
+      setPresenceState(
+        "error",
+        "Não consegui reproduzir minha voz. O texto da resposta continua disponível."
+      );
     }
 
   } finally {
@@ -963,6 +1110,7 @@ async function speak(text) {
         try {
           currentSource.stop();
         } catch (_) {}
+
         currentSource = null;
       }
 
@@ -979,9 +1127,12 @@ async function speak(text) {
       speaking = false;
 
       if (voiceMode) {
-        listenState.textContent = "PREPARANDO PARA OUVIR";
+        setPresenceState(
+          "listening",
+          "Terminei de falar. Estou esperando você continuar."
+        );
       } else {
-        listenState.textContent = "AGUARDANDO COMANDO";
+        setPresenceState("idle");
       }
     }
   }
@@ -1103,6 +1254,10 @@ async function sendMessage(
 
       if (speakResponse && voiceMode) {
         await speak(memoryResponse);
+      } else if (voiceMode) {
+        setPresenceState("listening");
+      } else {
+        setPresenceState("idle");
       }
 
       return;
@@ -1112,11 +1267,14 @@ async function sendMessage(
     autoRememberInformation(messageText);
   }
 
-  listenState.textContent = imageData
-    ? "ANALISANDO IMAGEM"
-    : voiceAudio
-      ? "ANALISANDO SUA VOZ"
-      : "PROCESSANDO";
+  setPresenceState(
+    "thinking",
+    imageData
+      ? "Estou observando a imagem e organizando o que consigo identificar."
+      : voiceAudio
+        ? "Estou considerando sua fala, suas palavras e o contexto."
+        : "Estou analisando sua mensagem para formular uma resposta."
+  );
 
   statusText.textContent = "CONECTANDO";
 
@@ -1183,6 +1341,10 @@ async function sendMessage(
 
     if (speakResponse && voiceMode) {
       await speak(answer);
+    } else if (voiceMode) {
+      setPresenceState("listening");
+    } else {
+      setPresenceState("idle");
     }
 
   } catch (error) {
@@ -1195,14 +1357,18 @@ async function sendMessage(
 
     saveHistory();
 
-    listenState.textContent = "VERIFIQUE A CONEXÃO";
     statusText.textContent = "ATENÇÃO";
+
+    setPresenceState(
+      "error",
+      error.message || "Não consegui concluir sua solicitação."
+    );
 
   } finally {
     busy = false;
 
-    if (voiceMode && !recognitionActive) {
-      listenState.textContent = "PREPARANDO PARA OUVIR";
+    if (voiceMode && !recognitionActive && !speaking) {
+      setPresenceState("listening");
       startListening();
     }
   }
@@ -1272,6 +1438,7 @@ function stopListening() {
 
   micBtn?.classList.remove("active");
 
+  setPresenceState("idle");
   listenState.textContent = "CONVERSA POR VOZ ENCERRADA";
 }
 
@@ -1298,7 +1465,10 @@ imageInput?.addEventListener("change", async () => {
   if (!file) return;
 
   try {
-    listenState.textContent = "PREPARANDO FOTO";
+    setPresenceState(
+      "thinking",
+      "Estou preparando sua imagem para analisar."
+    );
 
     pendingImage = await prepareImage(file);
 
@@ -1306,6 +1476,11 @@ imageInput?.addEventListener("change", async () => {
       "O que deseja saber sobre esta foto?";
 
     promptInput.focus();
+
+    setPresenceState(
+      "idle",
+      "Sua foto está pronta. Agora me diga o que deseja descobrir."
+    );
 
     listenState.textContent = "FOTO PRONTA PARA ENVIAR";
 
@@ -1315,7 +1490,7 @@ imageInput?.addEventListener("change", async () => {
 
     addMessage("assistant", error.message);
 
-    listenState.textContent = "AGUARDANDO COMANDO";
+    setPresenceState("error", error.message);
   }
 });
 
@@ -1341,7 +1516,10 @@ document.getElementById("clearBtn")?.addEventListener("click", () => {
     "Conversa limpa. Minhas memórias continuam guardadas. Estou pronto para começar novamente."
   );
 
-  listenState.textContent = "AGUARDANDO COMANDO";
+  setPresenceState(
+    "idle",
+    "Tudo organizado. Podemos começar uma nova conversa."
+  );
 });
 
 // RECONHECIMENTO DE VOZ
@@ -1362,9 +1540,14 @@ if (SpeechRecognition && micBtn) {
 
     micBtn.classList.add("active");
 
-    listenState.textContent = speaking
-      ? "PODE ME INTERROMPER"
-      : "ESTOU OUVINDO";
+    if (!speaking) {
+      setPresenceState(
+        "listening",
+        "Estou ouvindo sua voz. Pode falar naturalmente."
+      );
+    } else {
+      listenState.textContent = "PODE ME INTERROMPER";
+    }
   };
 
   recognition.onend = async () => {
@@ -1390,6 +1573,8 @@ if (SpeechRecognition && micBtn) {
 
     if (voiceMode && !busy) {
       startListening(speaking);
+    } else if (!voiceMode && !speaking && !busy) {
+      setPresenceState("idle");
     }
   };
 
@@ -1407,12 +1592,20 @@ if (SpeechRecognition && micBtn) {
       voiceMode = false;
       stopMicrophoneTracks();
 
-      listenState.textContent = "PERMITA O MICROFONE";
+      setPresenceState(
+        "error",
+        "Preciso de autorização para acessar o microfone."
+      );
+
       return;
     }
 
     if (voiceMode && !busy) {
-      listenState.textContent = "RECONECTANDO MICROFONE";
+      setPresenceState(
+        "listening",
+        "Estou tentando reconectar o microfone."
+      );
+
       startListening(speaking);
     }
   };
@@ -1446,13 +1639,19 @@ if (SpeechRecognition && micBtn) {
 
       stopAudio();
 
-      listenState.textContent = "OUVINDO SUA INTERRUPÇÃO";
+      setPresenceState(
+        "listening",
+        "Você me interrompeu. Estou prestando atenção no que está dizendo."
+      );
     }
 
     pendingTranscript = transcript;
 
     if (finalResult) {
-      listenState.textContent = "ENTENDI. VOU RESPONDER.";
+      setPresenceState(
+        "thinking",
+        "Entendi o que você disse. Estou preparando minha resposta."
+      );
     }
   };
 
@@ -1464,7 +1663,10 @@ if (SpeechRecognition && micBtn) {
 
     voiceMode = true;
 
-    listenState.textContent = "ATIVANDO CONVERSA POR VOZ";
+    setPresenceState(
+      "listening",
+      "Conversa por voz ativada. Estou pronto para ouvir você."
+    );
 
     await unlockAudio();
 
@@ -1473,8 +1675,10 @@ if (SpeechRecognition && micBtn) {
 
 } else if (micBtn) {
   micBtn.addEventListener("click", () => {
-    listenState.textContent =
-      "DITADO NÃO DISPONÍVEL NESTE NAVEGADOR";
+    setPresenceState(
+      "error",
+      "O reconhecimento de voz não está disponível neste navegador. Você pode digitar sua mensagem."
+    );
 
     promptInput.focus();
   });
@@ -1486,16 +1690,34 @@ fetch("/api/status")
   .then(status => {
     if (!status.configured) {
       statusText.textContent = "CONFIGURAÇÃO PENDENTE";
-      listenState.textContent = "CONECTE A IA NO SERVIDOR";
+
+      setPresenceState(
+        "error",
+        "A conexão com a inteligência precisa ser configurada no servidor."
+      );
+
+      return;
+    }
+
+    statusText.textContent = "SISTEMA PRONTO";
+
+    if (systemStatus) {
+      systemStatus.textContent = "GROQ CONECTADA";
     }
   })
   .catch(() => {
     statusText.textContent = "OFFLINE";
+
+    setPresenceState(
+      "error",
+      "Não consegui alcançar o servidor. Verifique sua conexão."
+    );
   });
 
 // INICIALIZAÇÃO
 loadLocalData();
 restoreConversation();
+setPresenceState("idle");
 
 // SERVICE WORKER
 if ("serviceWorker" in navigator) {
