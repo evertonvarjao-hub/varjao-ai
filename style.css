@@ -688,3 +688,18 @@ footer {
     scroll-behavior: auto !important;
   }
 }
+/* CABEÇALHO: MANTER SOMENTE A BOLINHA VERDE */
+.status {
+  font-size: 0 !important;
+  gap: 0 !important;
+}
+
+.status > *:not(.status-light) {
+  display: none !important;
+}
+
+.status-light {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1;
+}
