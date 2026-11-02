@@ -72,22 +72,6 @@ for (const filename of frontendFiles) {
     }
   });
 }
-const express = require("express");
-const { EdgeTTS } = require("node-edge-tts");
-const fs = require("fs/promises");
-const os = require("os");
-const path = require("path");
-const crypto = require("crypto");
-const multer = require("multer");
-const pdfParse = require("pdf-parse");
-const mammoth = require("mammoth");
-const XLSX = require("xlsx");
-const PDFDocument = require("pdfkit");
-
-const app = express();
-
-app.use(express.json({ limit: "8mb" }));
-app.use(express.static(path.join(__dirname, "public")));
 
 const upload = multer({
   storage: multer.memoryStorage(),
