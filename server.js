@@ -1,16 +1,29 @@
 
-
 const express = require("express");
 const { EdgeTTS } = require("node-edge-tts");
 const fs = require("fs/promises");
 const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
+const multer = require("multer");
+const pdfParse = require("pdf-parse");
+const mammoth = require("mammoth");
+const XLSX = require("xlsx");
+const PDFDocument = require("pdfkit");
 
 const app = express();
 
 app.use(express.json({ limit: "8mb" }));
 app.use(express.static(__dirname));
+
+// RECEBIMENTO TEMPORÁRIO DE DOCUMENTOS
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 12 * 1024 * 1024,
+    files: 1
+  }
+});
 
 // STATUS DO SISTEMA
 app.get("/api/status", (_req, res) => {
@@ -18,7 +31,9 @@ app.get("/api/status", (_req, res) => {
     ok: true,
     configured: Boolean(process.env.GROQ_API_KEY),
     voice: "pt-BR-AntonioNeural",
-    provider: "Groq"
+    provider: "Groq",
+    documents: true,
+    supportedDocuments: ["PDF", "DOCX", "TXT", "XLSX"]
   });
 });
 
@@ -176,6 +191,19 @@ Analise cuidadosamente as imagens recebidas.
 Descreva apenas o que realmente consegue observar.
 Não invente detalhes, objetos ou informações.
 
+DOCUMENTOS:
+Quando receber conteúdo extraído de um documento:
+- Leia o conteúdo antes de responder.
+- Respeite a solicitação do usuário.
+- Pode corrigir, reescrever, resumir, acrescentar, remover e reorganizar textos.
+- Preserve informações importantes e não invente dados.
+- Se houver dúvida sobre uma alteração, pergunte antes de assumir.
+- Quando o usuário pedir uma versão final, apresente o documento completo e organizado.
+- Não diga que salvou ou alterou o arquivo original.
+- O arquivo original deve ser preservado.
+- Diferencie sugestões de alterações efetivamente realizadas.
+- Ao revisar documentos técnicos, mantenha o sentido e a precisão das informações.
+
 ESPECIALIDADE: PROFESSOR DE FISIOTERAPIA
 Ensine desde o nível básico até o avançado, com profundidade,
 clareza, didática e raciocínio científico.
@@ -251,6 +279,203 @@ Tenha personalidade, espontaneidade e atitude.
 Saiba conversar, brincar, discordar e falar sério.
 Nunca pareça um robô programado para agradar.
 `;
+
+// EXTRAIR TEXTO DE DOCUMENTOS
+async function extractDocumentText(file) {
+  const extension = path.extname(file.originalname || "")
+    .toLowerCase();
+
+  let extracted = "";
+
+  if (extension === ".pdf") {
+    const result = await pdfParse(file.buffer);
+    extracted = result.text || "";
+
+  } else if (extension === ".docx") {
+    const result = await mammoth.extractRawText({
+      buffer: file.buffer
+    });
+
+    extracted = result.value || "";
+
+  } else if (extension === ".txt") {
+    extracted = file.buffer.toString("utf8");
+
+  } else if (extension === ".xlsx") {
+    const workbook = XLSX.read(file.buffer, {
+      type: "buffer"
+    });
+
+    const sections = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+
+      const csv = XLSX.utils.sheet_to_csv(sheet, {
+        blankrows: false
+      });
+
+      sections.push(
+        `PLANILHA: ${sheetName}\n${csv}`
+      );
+    }
+
+    extracted = sections.join("\n\n");
+
+  } else {
+    throw new Error(
+      "Formato não suportado. Envie PDF, DOCX, TXT ou XLSX."
+    );
+  }
+
+  extracted = String(extracted)
+    .replace(/\u0000/g, "")
+    .trim();
+
+  if (!extracted) {
+    throw new Error(
+      "Não consegui encontrar texto nesse documento. Ele pode estar vazio, protegido ou ser uma digitalização sem texto reconhecível."
+    );
+  }
+
+  const maximumCharacters = 100000;
+  const truncated = extracted.length > maximumCharacters;
+
+  return {
+    text: extracted.slice(0, maximumCharacters),
+    truncated,
+    originalCharacters: extracted.length
+  };
+}
+
+// RECEBER E LER DOCUMENTO
+app.post(
+  "/api/document",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          error: "Nenhum documento foi enviado."
+        });
+      }
+
+      const result = await extractDocumentText(req.file);
+
+      return res.json({
+        ok: true,
+        filename: path.basename(req.file.originalname),
+        extension: path.extname(req.file.originalname)
+          .toLowerCase(),
+        text: result.text,
+        truncated: result.truncated,
+        originalCharacters: result.originalCharacters
+      });
+
+    } catch (error) {
+      console.error("ERRO AO LER DOCUMENTO:", error);
+
+      return res.status(400).json({
+        error: error.message ||
+          "Não foi possível ler esse documento."
+      });
+    }
+  }
+);
+
+// GERAR PDF COM O DOCUMENTO EDITADO
+app.post("/api/document/export", async (req, res) => {
+  try {
+    const text = String(req.body?.text || "").trim();
+    const title = String(
+      req.body?.title || "Documento do VARJÃO"
+    ).trim();
+
+    if (!text) {
+      return res.status(400).json({
+        error: "Não há conteúdo para gerar o PDF."
+      });
+    }
+
+    if (text.length > 100000) {
+      return res.status(400).json({
+        error: "O documento ultrapassa o limite de exportação."
+      });
+    }
+
+    const document = new PDFDocument({
+      size: "A4",
+      margins: {
+        top: 55,
+        bottom: 55,
+        left: 55,
+        right: 55
+      },
+      bufferPages: true,
+      info: {
+        Title: title.slice(0, 150),
+        Author: "VARJÃO AI",
+        Subject: "Documento editado"
+      }
+    });
+
+    const chunks = [];
+
+    document.on("data", chunk => chunks.push(chunk));
+
+    document.on("error", error => {
+      console.error("ERRO AO GERAR PDF:", error);
+
+      if (!res.headersSent) {
+        res.status(500).end();
+      }
+    });
+
+    document.on("end", () => {
+      const pdfBuffer = Buffer.concat(chunks);
+
+      res.set({
+        "Content-Type": "application/pdf",
+        "Content-Length": pdfBuffer.length,
+        "Content-Disposition":
+          'attachment; filename="varjao-documento.pdf"',
+        "Cache-Control": "no-store"
+      });
+
+      res.send(pdfBuffer);
+    });
+
+    document
+      .font("Helvetica-Bold")
+      .fontSize(17)
+      .text(title.slice(0, 150), {
+        align: "center"
+      });
+
+    document.moveDown(1.5);
+
+    document
+      .font("Helvetica")
+      .fontSize(11)
+      .text(text, {
+        align: "left",
+        lineGap: 4,
+        paragraphGap: 7,
+        width: 485
+      });
+
+    document.end();
+
+  } catch (error) {
+    console.error("ERRO NA EXPORTAÇÃO:", error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: "Não foi possível gerar o PDF."
+      });
+    }
+  }
+});
 
 // VALIDAR INDICADORES DE VOZ
 function normalizeVoiceTone(input) {
@@ -349,7 +574,6 @@ function optimizeMessages(messages) {
     content: m.content.slice(-1400)
   }));
 
-  // Limite total aproximado de caracteres do histórico.
   let total = 0;
   const result = [];
 
@@ -573,6 +797,19 @@ app.post("/api/chat", async (req, res) => {
         : "Falha de conexão com a inteligência artificial."
     });
   }
+});
+
+// TRATAR ERROS DE ENVIO DE DOCUMENTOS
+app.use((error, _req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    const message = error.code === "LIMIT_FILE_SIZE"
+      ? "O arquivo ultrapassa o limite de 12 MB."
+      : "Não foi possível receber esse arquivo.";
+
+    return res.status(400).json({ error: message });
+  }
+
+  next(error);
 });
 
 // INICIAR SERVIDOR
