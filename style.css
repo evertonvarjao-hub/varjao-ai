@@ -112,7 +112,6 @@ button {
   animation: statusPulse 2.5s infinite;
 }
 
-/* Esconde o indicador antigo do cabeçalho */
 .topbar .status {
   display: none !important;
 }
@@ -126,7 +125,7 @@ button {
 /* ÁREA PRINCIPAL */
 
 main {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -217,8 +216,6 @@ main {
   border: 2px solid #e5c47d;
   transition: filter .4s, transform .4s;
 }
-
-/* Remove a bolinha antiga da fotografia */
 
 .hero-photo-wrap .presence-indicator {
   display: none !important;
@@ -380,6 +377,7 @@ main {
   flex: 1 1 0;
   min-width: 0;
   min-height: 0;
+  height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -390,7 +388,7 @@ main {
   box-shadow: 0 8px 28px rgba(0, 0, 0, .2);
 }
 
-/* TÍTULO FIXO DA CONVERSA */
+/* TÍTULO FIXO */
 
 .chat-head {
   position: relative;
@@ -433,26 +431,38 @@ main {
   opacity: .5;
 }
 
-/* HISTÓRICO: ÚNICA ÁREA COM ROLAGEM */
+/* HISTÓRICO COM ROLAGEM INDEPENDENTE */
 
 .messages {
   position: relative;
-  isolation: isolate;
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  height: auto;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  padding: 13px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 13px;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  max-height: 100% !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 13px !important;
+
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+
+  padding: 13px 4px !important;
+
   scrollbar-width: thin;
   scrollbar-color: #66512e transparent;
+}
+
+/* MENSAGENS NÃO ESTICAM O PAINEL */
+
+.messages > .message {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
 }
 
 .message {
@@ -541,8 +551,8 @@ main {
 
 .composer {
   position: relative;
-  z-index: 2;
-  flex: 0 0 auto;
+  z-index: 3;
+  flex: 0 0 auto !important;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -594,7 +604,9 @@ main {
 /* BOTÕES INFERIORES */
 
 .controls {
-  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto !important;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -662,7 +674,9 @@ main {
 /* AVISO INFERIOR */
 
 .privacy-note {
-  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto !important;
   text-align: center;
   color: #817765;
   font-size: 8px;
