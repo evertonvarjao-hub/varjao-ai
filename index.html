@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -8,76 +9,213 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VARJÃO AI">
-  <meta name="description" content="Seu assistente pessoal inteligente.">
+  <meta name="description" content="VARJÃO AI — Seu assistente pessoal inteligente.">
+
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="stylesheet" href="/style.css">
+
   <title>VARJÃO AI</title>
 </head>
+
 <body>
   <div class="app-shell">
+
+    <!-- CABEÇALHO -->
     <header class="topbar">
       <a class="brand-mark" href="/" aria-label="VARJÃO AI início">
         <span class="crown">♛</span>
-        <span><strong>VARJÃO</strong><small>PERSONAL AI</small></span>
+        <span>
+          <strong>VARJÃO</strong>
+          <small>PERSONAL AI</small>
+        </span>
       </a>
-      <div class="status">
+
+      <div class="status" id="systemStatus">
         <span class="status-light"></span>
         <span id="statusText">SISTEMA PRONTO</span>
       </div>
     </header>
 
     <main>
-      <section class="hero">
-        <div class="hero-photo-wrap">
+
+      <!-- PRESENÇA DO VARJÃO -->
+      <section class="hero" id="heroSection">
+
+        <div class="hero-photo-wrap" id="presenceCore">
+
           <div class="hero-orbit"></div>
-          <img class="hero-photo" src="/avatar.jpg" alt="Foto do avatar do VARJÃO">
+
+          <div class="presence-ring presence-ring-one"></div>
+          <div class="presence-ring presence-ring-two"></div>
+
+          <div class="presence-particles"></div>
+
+          <img
+            class="hero-photo"
+            src="/avatar.jpg"
+            alt="Foto do avatar do VARJÃO"
+          >
+
+          <div class="presence-indicator" id="presenceIndicator">
+            <span></span>
+          </div>
+
         </div>
+
         <div class="hero-copy">
-          <div class="eyebrow">ASSISTENTE PESSOAL</div>
-          <h1>À sua disposição.</h1>
-          <p>Converse comigo por texto ou voz.</p>
-          <div class="signature">VARJÃO <span>AI</span></div>
+
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            INTELIGÊNCIA ARTIFICIAL PESSOAL
+          </div>
+
+          <h1 id="heroGreeting">À sua disposição.</h1>
+
+          <p id="heroDescription">
+            Estou aqui. Vamos conversar.
+          </p>
+
+          <div class="signature">
+            VARJÃO <span>AI</span>
+          </div>
+
+          <div class="personality-status" id="personalityStatus">
+            <span class="personality-dot"></span>
+            <span id="personalityText">PRESENTE E ATENTO</span>
+          </div>
+
         </div>
       </section>
 
-      <div class="listen-state" id="listenState">AGUARDANDO COMANDO</div>
+      <!-- ESTADO DE INTERAÇÃO -->
+      <section class="presence-panel" id="presencePanel">
 
-      <section class="chat-panel">
-        <div class="chat-head">
-          <span>CONVERSA</span>
-          <button id="clearBtn" class="text-btn" type="button">LIMPAR</button>
+        <div class="presence-label">
+          <span class="presence-label-icon">◉</span>
+          <span id="listenState">AGUARDANDO COMANDO</span>
         </div>
 
-        <div id="messages" class="messages" aria-live="polite">
+        <div class="voice-visualizer" id="voiceVisualizer">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+
+        <div class="presence-caption" id="presenceCaption">
+          Pronto para ouvir você.
+        </div>
+
+      </section>
+
+      <!-- CONVERSA -->
+      <section class="chat-panel">
+
+        <div class="chat-head">
+          <div class="chat-title">
+            <span class="chat-title-indicator"></span>
+            <span>CONVERSA</span>
+          </div>
+
+          <button id="clearBtn" class="text-btn" type="button">
+            LIMPAR
+          </button>
+        </div>
+
+        <div
+          id="messages"
+          class="messages"
+          aria-live="polite"
+          aria-relevant="additions text"
+        >
+
           <div class="message assistant">
-            <img class="message-avatar" src="/avatar.jpg" alt="">
+
+            <img
+              class="message-avatar"
+              src="/avatar.jpg"
+              alt=""
+            >
+
             <div class="message-body">
               <span class="speaker">VARJÃO</span>
               <p>Olá! Estou pronto. Como posso ajudar?</p>
             </div>
+
           </div>
+
         </div>
 
+        <!-- CAMPO DE MENSAGEM -->
         <form id="chatForm" class="composer">
-          <input id="prompt" type="text" autocomplete="off"
-            placeholder="Fale comigo ou digite..." aria-label="Mensagem">
-          <button class="send-btn" type="submit" aria-label="Enviar">➤</button>
+
+          <input
+            id="prompt"
+            type="text"
+            autocomplete="off"
+            placeholder="Fale comigo ou digite..."
+            aria-label="Mensagem"
+          >
+
+          <button
+            class="send-btn"
+            type="submit"
+            aria-label="Enviar"
+          >
+            ➤
+          </button>
+
         </form>
 
+        <!-- CONTROLES -->
         <div class="controls">
+
           <button id="micBtn" class="mic-btn" type="button">
-            <span class="mic-symbol">🎙</span> FALAR
+            <span class="mic-symbol">🎙</span>
+            FALAR
           </button>
-          <label for="imageInput" class="add-btn" aria-label="Adicionar foto">+</label>
-          <input id="imageInput" type="file" accept="image/*" hidden>
+
+          <label
+            for="imageInput"
+            class="add-btn"
+            aria-label="Adicionar foto"
+          >
+            +
+          </label>
+
+          <input
+            id="imageInput"
+            type="file"
+            accept="image/*"
+            hidden
+          >
+
         </div>
 
-        <p class="privacy-note">Sua chave de IA fica no servidor, nunca neste iPhone.</p>
+        <p class="privacy-note">
+          Sua chave de IA fica no servidor, nunca neste iPhone.
+        </p>
+
       </section>
+
     </main>
-    <footer>VARJÃO AI <span>•</span> VERSÃO INICIAL</footer>
+
+    <!-- RODAPÉ -->
+    <footer>
+      VARJÃO AI <span>•</span> PERSONAL ASSISTANT
+    </footer>
+
   </div>
+
   <script src="/app.js"></script>
+
 </body>
 </html>
