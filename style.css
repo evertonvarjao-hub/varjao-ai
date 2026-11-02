@@ -738,3 +738,41 @@ footer {
   border-radius: 50%;
   box-shadow: 0 0 9px rgba(66, 207, 128, .4);
 }
+
+/* CORREÇÃO DA BOLINHA VERDE NO CABEÇALHO */
+
+.topbar {
+  justify-content: flex-start !important;
+  gap: 12px !important;
+}
+
+.topbar .status {
+  display: flex !important;
+  align-items: center !important;
+  margin-left: 0 !important;
+  gap: 0 !important;
+}
+
+/* Reativa os elementos do indicador */
+.topbar .status > * {
+  display: flex !important;
+}
+
+/* Esconde somente os textos */
+.topbar .status #statusText,
+.topbar .status .internal-state {
+  display: none !important;
+}
+
+/* Mantém a bolinha visível */
+.topbar .status .status-light {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 8px !important;
+  height: 8px !important;
+  min-width: 8px !important;
+  border-radius: 50% !important;
+  background: #42cf80 !important;
+  box-shadow: 0 0 9px rgba(66, 207, 128, .4) !important;
+}
