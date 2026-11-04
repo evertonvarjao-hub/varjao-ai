@@ -1287,11 +1287,13 @@ ${memories.map(memory => "- " + memory.content).join("\n")}
     }
 
     const systemPrompt =
-      VARJAO_PERSONALITY +
-      "\n" +
-      voiceGuidance +
-      "\n" +
-      memoryContext;
+  VARJAO_PERSONALITY +
+  "\n" +
+  voiceGuidance +
+  "\n" +
+  memoryContext +
+  "\n" +
+  documentContext;
 
     const payload = {
       model,
@@ -1303,7 +1305,7 @@ ${memories.map(memory => "- " + memory.content).join("\n")}
         ...contents
       ],
       temperature: 0.85,
-      max_tokens: 800
+      max_tokens: documentContext ? 4000 : 800
     };
 
     const result = await requestGroq(
