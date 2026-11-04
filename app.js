@@ -1792,3 +1792,159 @@ if ("serviceWorker" in navigator) {
       .catch(() => {});
   });
 }
+// ======================================================
+// ENVIO DIRETO DE DOCUMENTOS PARA A CONVERSA DO VARJÃO
+// O editor da folha 📄 permanece independente.
+// ======================================================
+
+let activeDocumentContext = null;
+
+// Intercepta somente documentos selecionados pelo botão +
+document.addEventListener("change", async (event) => {
+  if (event.target !== imageInput) return;
+
+  const file = imageInput.files?.[0];
+  if (!file) return;
+
+  const extension = file.name.split(".").pop().toLowerCase();
+
+  const allowedDocuments = ["pdf", "docx", "txt", "xlsx"];
+
+  if (!allowedDocuments.includes(extension)) return;
+
+  // Impede que o manipulador antigo abra o editor.
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  if (busy) {
+    addMessage(
+      "assistant",
+      "Estou terminando a tarefa atual. Envie o documento novamente quando eu estiver disponível."
+    );
+    imageInput.value = "";
+    return;
+  }
+
+  if (file.size > 12 * 1024 * 1024) {
+    addMessage("assistant", "O documento ultrapassa o limite de 12 MB.");
+    imageInput.value = "";
+    return;
+  }
+
+  try {
+    setPresenceState(
+      "thinking",
+      "Estou recebendo seu documento e preparando a leitura."
+    );
+
+    listenState.textContent = "LENDO DOCUMENTO";
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/document", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.ok) {
+      throw new Error(
+        data.error || "Não consegui ler esse documento."
+      );
+    }
+
+    const originalText = String(data.text || "");
+
+    if (!originalText.trim()) {
+      throw new Error("O documento não contém texto reconhecível.");
+    }
+
+    const maximumCharacters = 60000;
+
+    activeDocumentContext = {
+      filename: data.filename || file.name,
+      text: originalText.slice(0, maximumCharacters),
+      truncated:
+        Boolean(data.truncated) ||
+        originalText.length > maximumCharacters
+    };
+
+    imageInput.value = "";
+
+    setPresenceState(
+      "thinking",
+      "Documento recebido. Estou analisando o conteúdo."
+    );
+
+    // O VARJÃO verifica se já existe uma orientação anterior
+    // na conversa. Caso não exista, fará uma análise inicial.
+    const instruction =
+      "📎 Documento enviado: " +
+      activeDocumentContext.filename +
+      ". Leia o documento e execute a orientação que já dei anteriormente nesta conversa, se houver. Se ainda não dei uma orientação específica, faça uma análise inicial, explique o que encontrou e aguarde minhas próximas instruções. Não invente informações.";
+
+    await sendMessage(instruction);
+
+  } catch (error) {
+    console.error("ERRO NO ENVIO DO DOCUMENTO:", error);
+
+    imageInput.value = "";
+
+    addMessage(
+      "assistant",
+      "Não consegui processar o documento: " + error.message
+    );
+
+    setPresenceState("error", error.message);
+  }
+}, true);
+
+// Acrescenta o documento ativo automaticamente
+// em todas as mensagens enviadas à conversa.
+const originalVarjaoFetch = window.fetch.bind(window);
+
+window.fetch = async function(input, init = {}) {
+  const requestUrl =
+    typeof input === "string"
+      ? input
+      : input?.url || "";
+
+  if (
+    requestUrl.includes("/api/chat") &&
+    activeDocumentContext &&
+    typeof init.body === "string"
+  ) {
+    try {
+      const body = JSON.parse(init.body);
+
+      body.document = {
+        filename: activeDocumentContext.filename,
+        text: activeDocumentContext.text,
+        truncated: activeDocumentContext.truncated
+      };
+
+      init = {
+        ...init,
+        body: JSON.stringify(body)
+      };
+    } catch (error) {
+      console.error("Erro ao anexar documento à conversa:", error);
+    }
+  }
+
+  return originalVarjaoFetch(input, init);
+};
+
+// Ao limpar a conversa, também encerra o contexto
+// do documento enviado pelo botão +.
+document.addEventListener("click", (event) => {
+  const clearButton = event.target.closest("#clearBtn");
+
+  if (clearButton) {
+    activeDocumentContext = null;
+  }
+}, true);
+
+console.log("VARJÃO: envio direto de documentos ativado.");
