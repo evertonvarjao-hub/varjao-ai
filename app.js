@@ -1458,42 +1458,107 @@ form?.addEventListener("submit", event => {
   );
 });
 
-// SELEÇÃO DE IMAGEM
+// SELEÇÃO DE IMAGENS E DOCUMENTOS
 imageInput?.addEventListener("change", async () => {
   const file = imageInput.files?.[0];
 
   if (!file) return;
 
-  try {
-    setPresenceState(
-      "thinking",
-      "Estou preparando sua imagem para analisar."
-    );
+  const extension = file.name
+    .split(".")
+    .pop()
+    .toLowerCase();
 
-    pendingImage = await prepareImage(file);
+  const allowedDocuments = [
+    "pdf",
+    "docx",
+    "txt",
+    "xlsx"
+  ];
 
-    promptInput.placeholder =
-      "O que deseja saber sobre esta foto?";
+  // DOCUMENTOS
+  if (allowedDocuments.includes(extension)) {
+    try {
+      if (file.size > 12 * 1024 * 1024) {
+        throw new Error("O documento ultrapassa o limite de 12 MB.");
+      }
 
-    promptInput.focus();
+      if (!window.VARJAO_DOCUMENTS ||
+          typeof window.VARJAO_DOCUMENTS.upload !== "function") {
+        throw new Error(
+          "O módulo de documentos não foi carregado. Atualize a página."
+        );
+      }
 
-    setPresenceState(
-      "idle",
-      "Sua foto está pronta. Agora me diga o que deseja descobrir."
-    );
+      setPresenceState(
+        "thinking",
+        "Estou recebendo seu documento e preparando a leitura."
+      );
 
-    listenState.textContent = "FOTO PRONTA PARA ENVIAR";
+      listenState.textContent = "LENDO DOCUMENTO";
 
-  } catch (error) {
-    pendingImage = null;
-    imageInput.value = "";
+      await window.VARJAO_DOCUMENTS.upload(file);
 
-    addMessage("assistant", error.message);
+      listenState.textContent = "DOCUMENTO CARREGADO";
 
-    setPresenceState("error", error.message);
+      setPresenceState(
+        "idle",
+        "Seu documento está disponível. Agora podemos trabalhar nele."
+      );
+
+    } catch (error) {
+      addMessage("assistant", error.message);
+
+      setPresenceState("error", error.message);
+
+    } finally {
+      imageInput.value = "";
+    }
+
+    return;
   }
-});
 
+  // IMAGENS
+  if (file.type.startsWith("image/")) {
+    try {
+      setPresenceState(
+        "thinking",
+        "Estou preparando sua imagem para analisar."
+      );
+
+      pendingImage = await prepareImage(file);
+
+      promptInput.placeholder =
+        "O que deseja saber sobre esta foto?";
+
+      promptInput.focus();
+
+      setPresenceState(
+        "idle",
+        "Sua foto está pronta. Agora me diga o que deseja descobrir."
+      );
+
+      listenState.textContent = "FOTO PRONTA PARA ENVIAR";
+
+    } catch (error) {
+      pendingImage = null;
+      imageInput.value = "";
+
+      addMessage("assistant", error.message);
+
+      setPresenceState("error", error.message);
+    }
+
+    return;
+  }
+
+  addMessage(
+    "assistant",
+    "Formato não permitido. Selecione uma foto ou um documento PDF, DOCX, TXT ou XLSX."
+  );
+
+  imageInput.value = "";
+});
 // BOTÃO LIMPAR CONVERSA
 document.getElementById("clearBtn")?.addEventListener("click", () => {
   history = [];
